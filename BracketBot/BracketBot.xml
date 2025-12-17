@@ -13,21 +13,21 @@
     <body name="base">
         <joint type="free" name="free"/>
   
-        <geom name="upper" type="box" size="0.1 0.1 4" quat="0  0.707107 0 0" pos="0 0 4.1"/>                                                       <!-- 1 -->
-        <geom name="lower" type="box" size="0.1 0.1 1" quat="0.707107 0 0.707107 0" pos="0 0 0" mass="500"/>                         <!-- 2 -->
+        <geom name="upper" type="box" size="0.1 0.1 4" quat="0  0.707107 0 0" pos="0 0 4.1" mass="8"/>                                                       <!-- 1 -->
+        <geom name="lower" type="box" size="0.1 0.1 1" quat="0.707107 0 0.707107 0" pos="0 0 0" mass="2"/>  <!-- 2 -->
 
 
         <body name="top">
-          <geom name="top" type="sphere" size="0.1 0.1" mass="1e-4" pos="0 0 8"/>                                                                           <!-- 3 -->
+          <geom name="top" type="sphere" size="0.1 0.1" mass="1e-5" pos="0 0 8"/>                                                                           <!-- 3 -->
         </body>
 
         <body name="right_wheel" pos="1.15 0 0.05">
-          <geom name="right_wheel" type="cylinder" size="0.4125 0.125" quat="0 0.707107 0 0.707107"/>                                         <!-- 4 -->
+          <geom name="right_wheel" type="cylinder" size="0.4125 0.125" quat="0 0.707107 0 0.707107" mass="26.5"/>                                         <!-- 4 -->
           <joint name="right_wheel" type="hinge" axis="-1 0 0"/>
         </body>
 
         <body name="left_wheel" pos="-1.15 0 0.05">
-          <geom name="left_wheel" type="cylinder" size="0.4125 0.125" quat="0 0.707107 0 0.707107"/>                                           <!-- 5 -->
+          <geom name="left_wheel" type="cylinder" size="0.4125 0.125" quat="0 0.707107 0 0.707107" mass="26.5"/>                                           <!-- 5 -->
           <joint name="left_wheel" type="hinge" axis="-1 0 0"/>
         </body>
 
