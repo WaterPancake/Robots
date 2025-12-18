@@ -56,9 +56,9 @@ class Balance_BracketBot(PipelineEnv):
         base_x_velocity = pipeline_state.qd[0]
         velocity_penalty = 1.5 * base_x_velocity
 
-        # done = jp.where(top_z > 1.5, 0.0, 1.0)
+        done = jp.where(top_z > 1.5, 0.0, 1.0)
 
-        done = 0.0  # hard coded
+        # done = 0.0  # hard coded
 
         alive_reward = 10  # make parameterized later
 
@@ -89,8 +89,7 @@ class Balance_BracketBot(PipelineEnv):
         )
         velocity_penalty = 1.5 * base_x_velocity
 
-        # done = jp.where(top_z > 1.5, 0.0, 1.0)
-        done = 0.0  #
+        done = jp.where(top_z > 1.5, 0.0, 1.0)
 
         alive_reward = 10  # make parameterized later
 
@@ -98,6 +97,7 @@ class Balance_BracketBot(PipelineEnv):
             alive_reward + position_reward - velocity_penalty
         )  # Today I learned that early termination state should have a reward of zero
 
+        # reward = alive_reward + position_reward - velocity_penalty
         metrics = {"reward": reward, "z_pos": top_z, "base_vel": base_x_velocity}
 
         return state.replace(
