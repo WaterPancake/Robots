@@ -9,23 +9,45 @@ from jax import numpy as jp
 class BracketBot(PipelineEnv):
     """
     ### Accessing Geom
-
-    0 | world body
-    1 | upper
-    2 | lower / base
-    3 | top
-    4 | right wheel
-    5 | left wheel
+    |idx| name
+    |---|-----------
+    | 0 | world body
+    | 1 | upper
+    | 2 | lower / base
+    | 3 | top
+    | 4 | right wheel
+    | 5 | left wheel
 
     The 3d positon are obtained with `.geom_xpos[i]`, a member function of hte
+
+    ### Observation Space
+    obtained of `_obs()`
+
+    |idx | obsevation
+    |----|----------------------
+    | 0  | BracketBot x position (forward-back)
+    | 1  | BracketBot y position (left-right)
+    | 3  | Bracketbot z position (up-down)
+    | 4  | angle of right wheel
+    | 5  | angle of left wheel
+    | 6  |
+    | 7  |
+    | 8  |
+    | 9  |
+    | 10 |
+    | 11 |
+    | 12 |
+    | 13 |
+    | 14 |
+    | 15 |
+    | 16 |
+
     """
 
     def __init__(self, backend="mjx", **kwargs):
         path = "BracketBot.xml"
         sys = mjcf.load(path)
-
         n_frames = 2  # higher so rollout is smoother
-        self._forward_
 
         kwargs["n_frames"] = kwargs.get("n_frames", n_frames)
 
@@ -46,31 +68,40 @@ class BracketBot(PipelineEnv):
 
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
-        reward = self._reward(pipeline_state, jp.array([0.0, 0.0]))  # temp
+        reward = self._reward(
+            pipeline_state, jp.array([0.0, 0.0])
+        )  # make random instead???
 
         pole_angle = self._pole_angle(pipeline_state)
-        metrics = {"pole_angle": pole_angle, "reward": reward}
+        metrics = {"pole_angle": pole_angle, "forward_vel": 0.0, "reward": reward}
         done = 0.0
+
         return State(pipeline_state, obs, reward, done, metrics)
 
     def step(self, state: State, action: jax.Array) -> State:
+        pipeline_state0 = state.pipeline_state
         pipeline_state = self.pipeline_step(
             state.pipeline_state, action.astype(jp.float32)
         )
 
         obs = self._get_obs(pipeline_state)
+
+        pole_angle_radians = self._pole_angle(pipeline_state)
+        pole_angle = (180 / jp.pi) * pole_angle_radians
+        # forward_vel = pipeline_state.qd[0]  # x velocity for metrics
+        vel = pipeline_state.geom_xpos - pipeline_state0.geom_xpos
+        forward_vel = vel[3][0]
+
         reward = self._reward(pipeline_state, action)
 
-        pole_angle = self._pole_angle(pipeline_state)
+        done = jp.where(pole_angle_radians < 1.4, 0.0, 1.0)  # ~ 80 degrees
+        # see https://docs.jax.dev/en/latest/errors.html#jax.errors.TracerBoolConversionError for why this notation
 
-        done = jp.where(
-            pole_angle > 3.5, 0.0, 1.0
-        )  # see https://docs.jax.dev/en/latest/errors.html#jax.errors.TracerBoolConversionError for why this notation
-
-        # done = 0.0
-
-        pole_angle = self._pole_angle(state.pipeline_state)
-        metrics = {"pole_angle": pole_angle, "reward": reward}
+        metrics = {
+            "pole_angle": pole_angle,
+            "forward_vel": forward_vel,
+            "reward": reward,
+        }
 
         return state.replace(
             pipeline_state=pipeline_state,
@@ -81,13 +112,27 @@ class BracketBot(PipelineEnv):
         )
 
     def _reward(self, pipeline_state: base.State, action: jax.Array):
-        # balance reward, rewards staying up
-        return 1.0
+        """
+        Combined reward function that encourages:
+        1. Keeping the pole upright (height of top geom)
+        2. Forward movement (x-direction velocity)
+        3. Energy efficiency (penalize large actions)
+        4. Keeping pole angle small (penalize tilting)
+        """
+        top_height = pipeline_state.geom_xpos[3][2]  # z-coordinate of top
+        balance_reward = top_height
+        base_vel = pipeline_state.qd[0]  # x velocity of base
+        forward_reward = 2.0 * base_vel  # Scale forward movement
 
-    def _forward_reward(self, pipeline_state0: base.State, pipeline_state: base.State):
-        vel = pipeline_state.geom_xpos - pipeline_state0.geom_xpos
+        action_penalty = 0.01 * jp.sum(jp.square(action))
 
-        base_vel = vel[2] / self.dt
+        pole_angle = self._pole_angle(pipeline_state)
+        angle_penalty = 5.0 * pole_angle
+
+        # Total reward
+        total_reward = balance_reward + forward_reward - action_penalty - angle_penalty
+
+        return total_reward
 
     @property
     def action_size(self) -> int:
@@ -98,50 +143,25 @@ class BracketBot(PipelineEnv):
     the global position of the models geoms (namely their centers) can be obtained via `pipeline_state.geom_xpos[]` and are indexed in order of decleration in the models .xml file.
     """
 
-    # temporarily just returns z cordinate of top
-    def _pole_angle(self, pipeline_state) -> jp.float32:
-        # base = jp.array(pipeline_state.geom_xpos[2])
+    def _pole_angle(self, pipeline_state: base.State) -> jp.float32:
+        """Calculate the angle of the pole from vertical (in radians)."""
+        base = jp.array(pipeline_state.geom_xpos[2])
         top = jp.array(pipeline_state.geom_xpos[3])
-        return top[2]
-        # top = top - base
+        pole_vec = top - base
 
-        # z = jp.array([0, 0, 1])
-        # magnitude = jp.linalg.norm(top)
-        # pole_angle = jp.arccos(jp.dot(top, z) / magnitude)
+        z = jp.array([0.0, 0.0, 1.0])
+        magnitude = jp.linalg.norm(pole_vec)
+        # Angle from vertical (0 when upright, increases as it tilts)
+        pole_angle = jp.arccos(jp.clip(jp.dot(pole_vec, z) / magnitude, -1.0, 1.0))
 
-        # return pole_angle
+        return pole_angle
 
     def _get_obs(self, pipeline_state: base.State) -> jax.Array:
+        base_position = pipeline_state.q[0:3]
+        base_velocity = pipeline_state.qd[0:6]
+
+        wheel_vel = pipeline_state.qd[6:8]
+
         qpos = pipeline_state.q
         qvel = pipeline_state.qd
-
         return jp.concatenate([qpos] + [qvel])
-
-
-# if __name__ == "__main__":
-#     import mujoco
-
-# model = mujoco.MjModel.from_xml_path("BracketBot.xml")
-
-# print(f"qpos size: {model.nq}")
-# print(f"qvel size: {model.nv}")
-
-# print("Joint Information")
-# for i in range(model.njnt):
-#     joint_name = model.joint(i).name
-#     qpos_idx = model.jnt_qposadr[i]
-#     print(f"    {qpos_idx} : {joint_name}")
-
-
-if __name__ == "__main__":
-    from brax import envs
-
-    envs.register_environment("BracketBot", BracketBot)
-    env = envs.get_environment("BracketBot")
-    sys = env.sys
-
-    rng = jax.random.PRNGKey(0)
-    state = env.reset(rng)
-    pipeline_state = state.pipeline_state  # this is where we get the position o
-
-    print(len)
