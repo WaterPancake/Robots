@@ -21,41 +21,39 @@ class TwoAxisInvertedPendulum(PipelineEnv):
 
     The agent takes a 2-element vector for its action that control linear velocity of the cart along the x and y axis. Unlike the original, there is no limit for the actuator, for now...
 
-    | IDX | Action                    | Control Min | Control Max |
+    | Idx | Action                    | Control Min | Control Max |
     |-----|---------------------------|-------------|-------------|
-    |  0  | Linear force along x-axis |    -inf     |      inf    |
-    |  1  | Linear force along y-axis |    -inf     |      inf    |
+    |  0  | Linear force along x-axis |     -1      |      1      |
+    |  1  | Linear force along y-axis |     -1      |      1      |
 
     ### Observation Space
 
-    Refering to values in pipeline_state.q
-
-    | IDX | Observation                                                | Obs Min | Obs Max |
-    |-----|------------------------------------------------------------|---------|---------|
-    |  0  | x component of the carts position                          |    -1   |    1    |
-    |  1  | y component of the carts position                          |    -1   |    1    |
-    |  2  | angle of cart's pole along the x axis expressed in radians |  -1.57  |   1.57  |
-    |  3  | angle of cart's pole along the y axis expressed in raidans |  -1.57  |   1.57  |
-
-    popeline.qd is the first derivative of these values
-
+    | Idx | Observation                                                | Obs Min | Obs Max | Other acces
+    |-----|------------------------------------------------------------|---------|---------|------------
+    |  0  | x position of the cart                                     |    -2   |    2    | pipeline_state.q
+    |  1  | y position of the cart                                     |    -2   |    2    | pipeline_state.q
+    |  2  | angle of cart's pole along the x axis expressed in radians |  -2.9   |   2.9   | pipeline_state.q
+    |  3  | angle of cart's pole along the y axis expressed in raidans |  -2.9   |   2.9   | pipeline_state.q
+    |  4  | x velocity of the cart                                     |  -inf   |   inf   | pipeline_state.qd
+    |  5  | y velocity of the cart                                     |  -inf   |   inf   | pipeline_state.qd
+    |  6  | angular velocity of cart along the x  axis                 |  -inf   |   inf   | pipeline_state.qd
+    |  7  | angular velocity of cart along the y  axis                 |  -inf   |   inf   | pipeline_state.qd
 
     ### Reward
-    The objective of the environment is to keep the pole upright as well as keep the cart centered. Since actions are not limited,large actions are diencouraged by an action penalty that increases exponentially relative to the action values
+    The intended behavior of the system is for the cart balance the pole and center of its allowed region. This is acheived with an alive reward component, reward perportional to the angle of the pole in both the x and y axis.
 
     ### Starting State
-    its random...
 
     ### Episode Termination
     Episodes end (check via 'state.done') or if the pole falls at or below 90 degrees along either axis.
-
     """
 
     def __init__(self, backend="mjx", **kwargs):
         path = "inverted_two_axis_pendulum.xml"
+        # path = "inverted_two_axis_pendulum_v2.xml"
         sys = mjcf.load(path)
 
-        n_frames = 2
+        n_frames = 1
 
         kwargs["n_frames"] = kwargs.get("n_frames", n_frames)
 
@@ -64,52 +62,53 @@ class TwoAxisInvertedPendulum(PipelineEnv):
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
 
-        #
-        minval, maxval = -0.01, 0.01
         q = self.sys.init_q + jax.random.uniform(
-            rng1, (self.sys.q_size(),), minval=minval, maxval=maxval
+            rng1, (self.sys.q_size(),), minval=-1.5, maxval=1.5
         )
-        qd = jax.random.uniform(
-            rng2, (self.sys.qd_size(),), minval=minval, maxval=maxval
-        )
+        qd = jax.random.uniform(rng2, (self.sys.qd_size(),), minval=1, maxval=-1)
 
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
         reward, done = jp.zeros(2)
-        metrics = {}
+        metrics = {"reward": reward}
 
         return State(pipeline_state, obs, reward, done, metrics)
 
     def step(self, state: State, action: jax.Array) -> State:
+        # FIX: verify if the action is clampted correctly
         pipeline_state = self.pipeline_step(
             state.pipeline_state, action.astype(jp.float32)
         )
         obs = self._get_obs(pipeline_state)
-        reward = self._reward(pipeline_state, action)
+        # done = 0.0
         done = self._to_terminate(pipeline_state)
 
+        reward = self._reward_1(pipeline_state, action)
+        metrics = {"reward": reward}
+
         return state.replace(
-            pipeline_state=pipeline_state, obs=obs, reward=reward, done=done
+            pipeline_state=pipeline_state,
+            obs=obs,
+            reward=reward,
+            done=done,
+            metrics=metrics,
         )
 
     @property
     def action_size(self) -> int:
         return 2  # (x_force, y_force)
 
-    def _reward(self, pipeline_state: base.State, action: jax.Array) -> jax.Array:
+    def _reward_1(self, pipeline_state: base.State, action: jax.Array):
         """
-        The reward funciton will be
+        This reward function is defned as
+        $$\mathcal{R}_1(s,a) = \cos(\theta_x) + \cos(\theta_y)$$
         """
-        # position of the cart within its 2d plane of movement
-        x_pos, y_pos = pipeline_state.q[:2]
-        # angle of pole expressed in radians
-        pendulum_x_angle, pendulum_y_angle = pipeline_state.q[2:4]
+        theta_x, theta_y = pipeline_state.q[2:4]
 
-        pole_reward = jp.cos(pendulum_x_angle) + jp.cos(pendulum_y_angle)
-        action_penalty = -0.01 * jp.sum(action**2)
-        distance_penalty = -0.01 * (x_pos**2 + y_pos**2)
+        return jp.cos(theta_x) + jp.cos(theta_y)
 
-        return pole_reward + action_penalty + distance_penalty
+    def _reward_2(self, pipeline_state: base.State, action: jax.Array):
+        pass
 
     def _to_terminate(self, pipeline_state) -> bool:
         """
@@ -118,13 +117,24 @@ class TwoAxisInvertedPendulum(PipelineEnv):
         # angle of pole expressed in radians
         pendulum_x_angle, pendulum_y_angle = pipeline_state.q[2:4]
 
-        done = (
-            (jp.abs(pendulum_x_angle) > 1.57)  # ~ 90 degrees
-            | (jp.abs(pendulum_y_angle) > 1.57)
-        )
+        # 1.57 radians ~ 90 degrees
+        # done = (jp.abs(pendulum_x_angle) > 1.57) | (jp.abs(pendulum_y_angle) > 1.57)
 
-        # why as float???
+        # 2.9 radians ~ 170 degrees
+        done = (jp.abs(pendulum_x_angle) > 2.9) | (jp.abs(pendulum_y_angle) > 2.9)
+
         return done.astype(jp.float32)
 
     def _get_obs(self, pipeline_state: base.State) -> jax.Array:
         return jp.concatenate([pipeline_state.q, pipeline_state.qd])
+
+
+# for testing
+if __name__ == "__main__":
+    from brax import envs
+
+    envs.register_environment("TwoAxisInvertedPendulum", TwoAxisInvertedPendulum)
+    env = envs.get_environment("TwoAxisInvertedPendulum")
+
+    jit_reset = jax.jit(env.reset)
+    jit_step = jax.jit(env.step)
