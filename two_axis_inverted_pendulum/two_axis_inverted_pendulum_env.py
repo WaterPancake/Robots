@@ -49,8 +49,7 @@ class TwoAxisInvertedPendulum(PipelineEnv):
     """
 
     def __init__(self, backend="mjx", **kwargs):
-        path = "inverted_two_axis_pendulum.xml"
-        # path = "inverted_two_axis_pendulum_v2.xml"
+        path = "assets/xml/inverted_two_axis_pendulum_v2.xml"
         sys = mjcf.load(path)
 
         n_frames = 1
@@ -62,9 +61,13 @@ class TwoAxisInvertedPendulum(PipelineEnv):
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
 
-        q = self.sys.init_q + jax.random.uniform(
-            rng1, (self.sys.q_size(),), minval=-1.5, maxval=1.5
-        )
+        # q = self.sys.init_q + jax.random.uniform(
+        #     rng1, (self.sys.q_size(),), minval=-1.5, maxval=1.5
+        # )
+
+        # pole down position
+        q = self.sys.init_q
+
         qd = jax.random.uniform(rng2, (self.sys.qd_size(),), minval=1, maxval=-1)
 
         pipeline_state = self.pipeline_init(q, qd)
@@ -83,7 +86,8 @@ class TwoAxisInvertedPendulum(PipelineEnv):
         # done = 0.0
         done = self._to_terminate(pipeline_state)
 
-        reward = self._reward_1(pipeline_state, action)
+        # reward = self._reward_1(pipeline_state, action)
+        reward = self._reward_2(pipeline_state, action)
         metrics = {"reward": reward}
 
         return state.replace(
@@ -105,9 +109,16 @@ class TwoAxisInvertedPendulum(PipelineEnv):
         """
         theta_x, theta_y = pipeline_state.q[2:4]
 
-        return jp.cos(theta_x) + jp.cos(theta_y)
+        return 2 + jp.cos(theta_x) + jp.cos(theta_y)
 
     def _reward_2(self, pipeline_state: base.State, action: jax.Array):
+        x_pos, y_pos, theta_x, theta_y = pipeline_state.q[:4]
+        balance_reward = jp.cos(theta_x) + jp.cos(theta_y)
+        distance_penalty = (x_pos**2) + (y_pos**2)
+
+        return 4 * balance_reward - distance_penalty
+
+    def _reward_3(self, pipeline_state: base.State, action: jax.Array):
         pass
 
     def _to_terminate(self, pipeline_state) -> bool:
@@ -121,7 +132,7 @@ class TwoAxisInvertedPendulum(PipelineEnv):
         # done = (jp.abs(pendulum_x_angle) > 1.57) | (jp.abs(pendulum_y_angle) > 1.57)
 
         # 2.9 radians ~ 170 degrees
-        done = (jp.abs(pendulum_x_angle) > 2.9) | (jp.abs(pendulum_y_angle) > 2.9)
+        done = (jp.abs(pendulum_x_angle) > 2.1) | (jp.abs(pendulum_y_angle) > 2.1)
 
         return done.astype(jp.float32)
 
