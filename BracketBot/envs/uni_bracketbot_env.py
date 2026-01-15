@@ -31,7 +31,6 @@ from jax import numpy as jp
 |  6  | Right wheel velocity
 |  7  | Left wheel velocity
 
-
 ## pipeline_state.xpos (cordinates in the world)
 | idx | name
 |-----|-----------------------------------
@@ -50,17 +49,11 @@ from jax import numpy as jp
 |  0  | right wheel
 |  0  | left wheel
 
-
-For some reason this does not inlude the position of the top body from the xml
-
-## pipeline_state.geom_xpos (local cordinates, i.e. position in relation to eachother)
-
 """
 
 
-class Balance_BracketBot(PipelineEnv):
+class Uni_Balance_BracketBot(PipelineEnv):
     def __init__(self, backend="mjx", **kwargs):
-        # path = "BracketBot.xml"
         path = "xml/BracketBot_single_control.xml"
         sys = mjcf.load(path)
 
@@ -119,31 +112,15 @@ class Balance_BracketBot(PipelineEnv):
             metrics=metrics,
         )
 
-    # def _reward(self, pipeline_state: base.State):
-    #     rw_vel, lw_vel = pipeline_state.qd[-2:]
-    #     spin_penalty = (rw_vel - lw_vel) ** 2
-
-    #     pole_top = jp.array(pipeline_state.xpos[2])
-    #     x_unit = jp.array([1, 0, 0], dtype=float)
-    #     pole_top_mag = jp.linalg.norm(pole_top)
-    #     x_unit_mag = 1  # by definiton of unit vector
-    #     pole_angle = jp.arccos(
-    #         (pole_top @ x_unit) / (pole_top_mag) * x_unit_mag
-    #     )  # in what unit? radians or degrees?
-    #     angle_reward = jp.cos(pole_angle)  # undoes the earlier arccos, but idc
-
-    #     survival_reward = 5
-
-    #     reward = survival_reward + angle_reward - spin_penalty
-
-    #     return reward
-    #
     def _reward(self, pipeline_state: base.State):
-        roll = self._roll(pipeline_state)
+        """
+        Very simple reward function for now.
+        """
+        pitch = self._pitch(self, pipeline_state)
 
         survival_reward = 1
 
-        reward = survival_reward + jp.cos(roll)
+        reward = survival_reward + jp.cos(pitch)
 
         return reward
 
@@ -176,5 +153,4 @@ class Balance_BracketBot(PipelineEnv):
 
     @property
     def action_size(self) -> int:
-        # return 2
-        return 1  # for single control
+        return 1  # control input goes to both wheels
