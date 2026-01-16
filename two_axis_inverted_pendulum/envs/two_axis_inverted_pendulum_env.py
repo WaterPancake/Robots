@@ -28,7 +28,7 @@ class TwoAxisInvertedPendulum(PipelineEnv):
 
     ### Observation Space
 
-    | Idx | Observation                                                | Obs Min | Obs Max | Other acces
+    | Idx | Observation                                                | Obs Min | Obs Max | Other access
     |-----|------------------------------------------------------------|---------|---------|------------
     |  0  | x position of the cart                                     |    -2   |    2    | pipeline_state.q
     |  1  | y position of the cart                                     |    -2   |    2    | pipeline_state.q
@@ -61,11 +61,10 @@ class TwoAxisInvertedPendulum(PipelineEnv):
     def reset(self, rng: jax.Array) -> State:
         rng, rng1, rng2 = jax.random.split(rng, 3)
 
-        # q = self.sys.init_q + jax.random.uniform(
-        #     rng1, (self.sys.q_size(),), minval=-1.5, maxval=1.5
-        # )
+        q = self.sys.init_q + jax.random.uniform(
+            rng1, (self.sys.q_size(),), minval=-1.5, maxval=1.5
+        )
 
-        # pole down position
         q = self.sys.init_q
 
         qd = jax.random.uniform(rng2, (self.sys.qd_size(),), minval=1, maxval=-1)
@@ -83,7 +82,6 @@ class TwoAxisInvertedPendulum(PipelineEnv):
             state.pipeline_state, action.astype(jp.float32)
         )
         obs = self._get_obs(pipeline_state)
-        # done = 0.0
         done = self._to_terminate(pipeline_state)
 
         # reward = self._reward_1(pipeline_state, action)
@@ -103,10 +101,6 @@ class TwoAxisInvertedPendulum(PipelineEnv):
         return 2  # (x_force, y_force)
 
     def _reward_1(self, pipeline_state: base.State, action: jax.Array):
-        """
-        This reward function is defned as
-        $$\mathcal{R}_1(s,a) = \cos(\theta_x) + \cos(\theta_y)$$
-        """
         theta_x, theta_y = pipeline_state.q[2:4]
 
         return 2 + jp.cos(theta_x) + jp.cos(theta_y)
@@ -132,7 +126,7 @@ class TwoAxisInvertedPendulum(PipelineEnv):
         # done = (jp.abs(pendulum_x_angle) > 1.57) | (jp.abs(pendulum_y_angle) > 1.57)
 
         # 2.9 radians ~ 170 degrees
-        done = (jp.abs(pendulum_x_angle) > 2.1) | (jp.abs(pendulum_y_angle) > 2.1)
+        done = (jp.abs(pendulum_x_angle) > 2.9) | (jp.abs(pendulum_y_angle) > 2.9)
 
         return done.astype(jp.float32)
 

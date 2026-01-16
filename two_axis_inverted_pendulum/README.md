@@ -198,8 +198,9 @@ Puts emphesis on controling $\theta_x$ and $\theta_y$ but also concerned with co
 
 # Control with LQR
 
-As metioned earlier, a fixed point is needed a point to linearize.
+Creating a controller that can move the cart while maintining the pole in an upright posture. 
 
+Acheived by assinging a new cordinate and defining the cost to go function from the systems current state to the the upright state in the new cordinate.
 
 # Controllability Analysis:
 - Look at eigen values of the system,

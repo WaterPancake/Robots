@@ -5,8 +5,7 @@
   <default>
     <joint armature="0" damping="0.1" limited="true"/>
     <!-- <geom contype="0" friction="1 0.1 0.1" rgba="0.4 0.33 0.26 1.0"/> -->
-    <tendon/>
-    <motor ctrlrange="-2 2"/>
+    <motor ctrlrange="-1 1"/>
   </default>
   <option gravity="0 0 -9.81" timestep="0.02" />
   <custom>
