@@ -4,6 +4,8 @@ Following Gymnasium guide (https://gymnasium.farama.org/introduction/create_cust
 
 import mujoco
 import numpy as np
+import os
+from typing import Optional
 
 
 class EnvConfig:
@@ -11,13 +13,13 @@ class EnvConfig:
 
 
 class BracketBotEnv:
-    def __init__(self, xml_path="../assets/BracketBot.xml"):
+    def __init__(self, xml_path="assets/BracketBot.xml"):
         """
         qpos: [x, y, z, qw, qx, qy, qz, left_wheel_angle, right_wheel_angle]
         qvel: [vx, vy, vz, wx, wy, wz, left_wheel_vel, right_wheel_vel]
         """
         self.model = mujoco.MjModel.from_xml_path(xml_path)
-        self.sys = mujoco.MjData(self.model)
+        self.data = mujoco.MjData(self.model)
 
         # Mujoco Backend params
         self.n_frames = 2
@@ -35,22 +37,33 @@ class BracketBotEnv:
         # env params
         self.rng = np.random.default_rng()  # for seed reset
         self.fall_angle = np.pi / 6  # ~ 60 from upright
+        self.episode_length = 1000
 
-    def restart(self) -> np.ndarray:
-        mujoco.mj_resetData(self.model, self.sys)
+    def seed(self, seed: int):
+        self.rng = np.random.default_rng(seed)
 
-        # randomizing intial conditon
+    def restart(self, seed: int = -1) -> np.ndarray:
+        if seed != -1:
+            self.seed(seed)
+
+        mujoco.mj_resetData(self.model, self.data)
 
         q_min, q_max = -0.5, 0.5
-        self.sys.qpos[0:2] += self.rng.uniform(size=2, high=q_max, low=q_min)
+        self.data.qpos[0:2] += self.rng.uniform(size=2, high=q_max, low=q_min)
 
         qd_min, qd_max = -0.5, 0.5
+        self.data.qvel[0:2] += self.rng.uniform(size=2, high=qd_max, low=qd_min)
 
-        self.sys.qvel[0:2] += self.rng.uniform(size=2, high=qd_max, low=qd_min)
+        self.data.qvel[4] += self.rng.uniform(-0.5, 0.5)  # random pitch
 
-    def step(
-        self, action: np.array
-    ) -> tuple[np.ndarray, float, bool, dict]:  # justify why this format
+        mujoco.mj_forward(self.model, self.data)
+
+        self.step_count = 0
+
+        return self._obs()
+
+    def step(self, action: np.array) -> tuple[np.ndarray, float, bool, dict]:
+        # borrowing Gymnaisum return format for later to compare it to using  Gymnasium env approach
         """
         Return format:
             np.ndarray: new observation
@@ -60,37 +73,51 @@ class BracketBotEnv:
         """
 
         action = np.clip(action, self.min_action, self.max_action)
-        self.sys.ctrl = action
+        self.data.ctrl = action
 
         for _ in range(self.n_frames):
-            mujoco.mj_step(self.model, self.sys)
+            mujoco.mj_step(self.model, self.data)
 
         self.step_count += 1
         obs = self._obs()
+        reward, reward_info = self._reward(obs, action)
+        done = self._terminate(obs)
 
-        reward, info = self._reward(obs, action)
-        # done = self._terminate()
+        info = {"step": self.step_count, **reward_info}
 
-        # either use mj_forward or mj_step??
+        return obs, reward, done, info
 
-    def _terminate(self):
+    def _terminate(self, obs) -> tuple[bool, str]:
         """
-        for this version, terminate only after 1000 time steps
+        Two end conditons:
+        1. Pole pitch angle falls past self.fall_angle
+        2. 1000 time steps elapses
         """
-        pass
+        pitch = obs[4]
+        done = False
+        reason = ""
+
+        if np.abs(pitch) > self.fall_angle:
+            done = True
+            reason = "Fall"
+        elif self.step_count >= self.episode_length:
+            done = True
+            reason = "Truncated"
+
+        return done, reason
 
     def _roll(self):
-        quat = self.sys.qpos[3:7]  # w, x, y, z
+        quat = self.data.qpos[3:7]  # w, x, y, z
         w, x, y, z = quat[0], quat[1], quat[2], quat[3]
         return np.arctan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
 
     def _pitch(self):
-        quat = self.sys.qpos[3:7]  # w, x, y, z
+        quat = self.data.qpos[3:7]  # w, x, y, z
         w, x, y, z = quat[0], quat[1], quat[2], quat[3]
         return np.arcsin(2 * (w * y - z * x))
 
     def _yaw(self):
-        quat = self.sys.qpos[3:7]  # w, x, y, z
+        quat = self.data.qpos[3:7]  # w, x, y, z
         w, x, y, z = quat[0], quat[1], quat[2], quat[3]
         return np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
 
@@ -103,7 +130,7 @@ class BracketBotEnv:
 
         pitch, pitch_vel = obs[4], obs[6]
 
-        angle_reward = np.coos(3 * pitch)  # zero at pi/4 = 45 degrees
+        angle_reward = np.cos(3 * pitch)  # zero at pi/4 = 45 degrees
 
         action_penalty = np.sum(action**2)
 
@@ -136,7 +163,6 @@ class BracketBotEnv:
 
         return reward, info
 
-    @property
     def _obs(self):
         """
         Observation Space:
@@ -154,8 +180,8 @@ class BracketBotEnv:
          8  | left wheel velocity
          9  | right wheel velocity
         """
-        q = self.sys.qpos
-        qd = self.sys.qvel
+        q = self.data.qpos
+        qd = self.data.qvel
 
         # will be used later, for now, using a full state discription
         # roll = self._roll()
@@ -164,20 +190,22 @@ class BracketBotEnv:
 
         # vroll
         pitch_vel = qd[4]  # wy
-        yaw = qd[5]  # wz
+        yaw_vel = qd[5]  # wz
 
         base_position = q[0:2]  # x, y
         base_velocity = qd[0:2]  # vx, vy
         wheel_vel = qd[-2:]  # left_wheel_vel, right_wheel_vel
 
         obs = np.concatenate(
-            base_position,
-            base_velocity,
-            [pitch],
-            [yaw],
-            [pitch_vel],
-            [yaw_vel],
-            wheel_vel,
+            [
+                base_position,  # 0,1
+                base_velocity,  # 2,3
+                [pitch],  # 4
+                [yaw],  # 5
+                [pitch_vel],  # 6
+                [yaw_vel],  # 7
+                wheel_vel,  # 8, 9
+            ]
         )
         # dim = 10
 
@@ -191,3 +219,7 @@ class BracketBotEnv:
     @property
     def _observation_space(self) -> int:
         return self.obs_dim
+
+
+if __name__ == "__main__":
+    # put test here
