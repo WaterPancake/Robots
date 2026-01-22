@@ -6,6 +6,7 @@ import mujoco
 import numpy as np
 import os
 from typing import Optional
+import mediapy as media
 
 
 class EnvConfig:
@@ -13,13 +14,22 @@ class EnvConfig:
 
 
 class BracketBotEnv:
-    def __init__(self, xml_path="../assets/BracketBot.xml"):
+    def __init__(
+        self, xml_path="../assets/BracketBot.xml", render_width=1280, render_height=720
+    ):
         """
         qpos: [x, y, z, qw, qx, qy, qz, left_wheel_angle, right_wheel_angle]
         qvel: [vx, vy, vz, wx, wy, wz, left_wheel_vel, right_wheel_vel]
         """
         self.model = mujoco.MjModel.from_xml_path(xml_path)
         self.data = mujoco.MjData(self.model)
+
+        # Rendering params (lazy initialization)
+        self.render_width = render_width
+        self.render_height = render_height
+        self._renderer = None
+        self._gl_context = None
+        self.frames = []
 
         # Mujoco Backend params
         self.n_frames = 2
@@ -48,10 +58,10 @@ class BracketBotEnv:
 
         mujoco.mj_resetData(self.model, self.data)
 
-        q_min, q_max = -0.5, 0.5
+        q_min, q_max = -0.1, 0.1
         self.data.qpos[0:2] += self.rng.uniform(size=2, high=q_max, low=q_min)
 
-        qd_min, qd_max = -0.5, 0.5
+        qd_min, qd_max = -0.1, 0.1
         self.data.qvel[0:2] += self.rng.uniform(size=2, high=qd_max, low=qd_min)
 
         self.data.qvel[4] += self.rng.uniform(-0.5, 0.5)  # random pitch
@@ -59,6 +69,7 @@ class BracketBotEnv:
         mujoco.mj_forward(self.model, self.data)
 
         self.step_count = 0
+        self.frames = []
 
         return self._obs()
 
@@ -94,17 +105,13 @@ class BracketBotEnv:
         2. 1000 time steps elapses
         """
         pitch = obs[4]
-        done = False
-        reason = ""
 
         if np.abs(pitch) > self.fall_angle:
-            done = True
-            reason = "Fall"
+            return True, "Fall"
         elif self.step_count >= self.episode_length:
-            done = True
-            reason = "Truncated"
-
-        return done, reason
+            return True, "Truncated"
+        else:
+            return False, ""
 
     def _roll(self):
         quat = self.data.qpos[3:7]  # w, x, y, z
@@ -113,8 +120,10 @@ class BracketBotEnv:
 
     def _pitch(self):
         quat = self.data.qpos[3:7]  # w, x, y, z
+        # quat = np.linalg.norm(quat)
         w, x, y, z = quat[0], quat[1], quat[2], quat[3]
-        return np.arcsin(2 * (w * y - z * x))
+        # return np.asin(2 * ((w * y) - (z * x)))
+        return np.arctan2(2 * (x * z + w * y), w * w - x * x - y * y + z * z)
 
     def _yaw(self):
         quat = self.data.qpos[3:7]  # w, x, y, z
@@ -221,40 +230,58 @@ class BracketBotEnv:
         return self.obs_dim
 
 
+# for testing
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+    import mujoco.renderer
 
     env = BracketBotEnv()
+    ctx = mujoco.GLContext(max_width=1280, max_height=720)
+    ctx.make_current()
+    renderer = mujoco.Renderer(env.model)
 
-    obs = env.restart(seed=49)
+    obs = env.restart(seed=0)
 
     # test a half episode
     total_reward = 0
     obs = env.restart(seed=0)
     pitch_angles = []
+    yaw_angles = []
+    frames = []
     for i in range(500):
         rand_action = np.random.uniform(size=2)
-        # obs, reward, done, info = env.step(np.zeros(2))
         obs, reward, done, info = env.step(rand_action)
+        renderer.update_scene(env.data)
+        frames.append(renderer.render())
         total_reward += reward
-        # print(info["pitch_angle"])
-        # print(f"{'=' * 10}")
-        pitch_angles.append(info["pitch_angle"])
 
-        if done:
-            print(f"Terminated: {info['reason']}, pitch: {info['pitch_angle']}")
-            print(f"Accululated Reward: {total_reward}")
-            break
+        pitch_angles.append(info["pitch_angle_degree"])
+        yaw_angles.append(np.rad2deg(obs[5]))
 
-    y = np.arange(500)
-    plt.plot(y, pitch_angles)
+        # if done:
+        #     print(f"Terminated: {info['reason']}, pitch: {info['pitch_angle_degree']}")
+        #     print(f"Accululated Reward: {total_reward}")
+        #     break
 
-    plt.xlabel("Time Step")
-    plt.ylabel("Pitch angle (radians)")
+    """tracking pitch"""
+
+    fig, axs = plt.subplots(2, sharex=True)
+    y = np.arange(len(pitch_angles))
+
+    axs[0].plot(y, pitch_angles)
+    axs[0].set_title("Pitch")
+
+    axs[1].plot(y, yaw_angles)
+    axs[1].set_title("Yaw")
+
+    out_file = "rollout.mp4"
+    cur_dir = os.path.dirname(os.path.abspath(__file__))
+    out_path = os.path.join(cur_dir, out_file)
+    media.write_video(out_path, frames, fps=27)
 
     plt.show()
 
-    # testing reset with seed
+    """testing seed"""
     env.restart(seed=10)
 
     obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
@@ -265,3 +292,6 @@ if __name__ == "__main__":
 
     print(f"obs_1: {obs_1}, reward_1: {reward_1}")
     print(f"obs_2: {obs_2}, reward_2: {reward_2}")
+
+    if np.array_equal(obs_1, obs_2):
+        print("Working as intended.")
