@@ -13,7 +13,7 @@ class EnvConfig:
 
 
 class BracketBotEnv:
-    def __init__(self, xml_path="assets/BracketBot.xml"):
+    def __init__(self, xml_path="../assets/BracketBot.xml"):
         """
         qpos: [x, y, z, qw, qx, qy, qz, left_wheel_angle, right_wheel_angle]
         qvel: [vx, vy, vz, wx, wy, wz, left_wheel_vel, right_wheel_vel]
@@ -25,7 +25,7 @@ class BracketBotEnv:
         self.n_frames = 2
 
         # Dim Space
-        self.obs_dim = 10  # see _obs() for details
+        self.obs_dim = 10  # see obs() for details
         self.act_dim = 2  # [left_wheel_vel, right_wheel_vel]
 
         # Action Space
@@ -34,9 +34,9 @@ class BracketBotEnv:
 
         self.step_count = 0
 
-        # env params
+        # Env params
         self.rng = np.random.default_rng()  # for seed reset
-        self.fall_angle = np.pi / 6  # ~ 60 from upright
+        self.fall_angle = np.pi / 6  # ~ 60 away upright or 30 from ground
         self.episode_length = 1000
 
     def seed(self, seed: int):
@@ -81,9 +81,9 @@ class BracketBotEnv:
         self.step_count += 1
         obs = self._obs()
         reward, reward_info = self._reward(obs, action)
-        done = self._terminate(obs)
+        done, reason = self._terminate(obs)
 
-        info = {"step": self.step_count, **reward_info}
+        info = {"step": self.step_count, "reason": reason, **reward_info}
 
         return obs, reward, done, info
 
@@ -152,7 +152,7 @@ class BracketBotEnv:
             - (action_weight * action_penalty)
         )
 
-        info = {
+        reward_info = {
             "angle_reward": angle_reward,
             "action_penalty": action_penalty,
             "velocity_penalty": velocity_penalty,
@@ -161,7 +161,7 @@ class BracketBotEnv:
             "reward": reward,
         }
 
-        return reward, info
+        return reward, reward_info
 
     def _obs(self):
         """
@@ -213,13 +213,55 @@ class BracketBotEnv:
         # return np.concatenate(q, qd)
 
     @property
-    def _action_space(self) -> int:
+    def _act_dim(self) -> int:
         return self.act_dim
 
     @property
-    def _observation_space(self) -> int:
+    def _obs_dim(self) -> int:
         return self.obs_dim
 
 
 if __name__ == "__main__":
-    # put test here
+    import matplotlib.pyplot as plt
+
+    env = BracketBotEnv()
+
+    obs = env.restart(seed=49)
+
+    # test a half episode
+    total_reward = 0
+    obs = env.restart(seed=0)
+    pitch_angles = []
+    for i in range(500):
+        rand_action = np.random.uniform(size=2)
+        # obs, reward, done, info = env.step(np.zeros(2))
+        obs, reward, done, info = env.step(rand_action)
+        total_reward += reward
+        # print(info["pitch_angle"])
+        # print(f"{'=' * 10}")
+        pitch_angles.append(info["pitch_angle"])
+
+        if done:
+            print(f"Terminated: {info['reason']}, pitch: {info['pitch_angle']}")
+            print(f"Accululated Reward: {total_reward}")
+            break
+
+    y = np.arange(500)
+    plt.plot(y, pitch_angles)
+
+    plt.xlabel("Time Step")
+    plt.ylabel("Pitch angle (radians)")
+
+    plt.show()
+
+    # testing reset with seed
+    env.restart(seed=10)
+
+    obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
+
+    env.restart(seed=10)
+
+    obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
+
+    print(f"obs_1: {obs_1}, reward_1: {reward_1}")
+    print(f"obs_2: {obs_2}, reward_2: {reward_2}")
