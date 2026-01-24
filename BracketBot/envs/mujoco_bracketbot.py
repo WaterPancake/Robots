@@ -1,12 +1,9 @@
-"""
-Following Gymnasium guide (https://gymnasium.farama.org/introduction/create_custom_env/)
-"""
-
 import mujoco
 import numpy as np
 import os
 from typing import Optional
 import mediapy as media
+import scipy
 
 
 class EnvConfig:
@@ -35,7 +32,7 @@ class BracketBotEnv:
         self.n_frames = 2
 
         # Dim Space
-        self.obs_dim = 10  # see obs() for details
+        self.obs_dim = 12  # see obs() for details
         self.act_dim = 2  # [left_wheel_vel, right_wheel_vel]
 
         # Action Space
@@ -46,7 +43,7 @@ class BracketBotEnv:
 
         # Env params
         self.rng = np.random.default_rng()  # for seed reset
-        self.fall_angle = np.pi / 6  # ~ 60 away upright or 30 from ground
+        self.fall_angle = np.pi / 3  # ~ 60 away upright or 30 from ground
         self.episode_length = 1000
 
     def seed(self, seed: int):
@@ -104,7 +101,7 @@ class BracketBotEnv:
         1. Pole pitch angle falls past self.fall_angle
         2. 1000 time steps elapses
         """
-        pitch = obs[4]
+        pitch = obs[6]
 
         if np.abs(pitch) > self.fall_angle:
             return True, "Fall"
@@ -120,10 +117,8 @@ class BracketBotEnv:
 
     def _pitch(self):
         quat = self.data.qpos[3:7]  # w, x, y, z
-        # quat = np.linalg.norm(quat)
         w, x, y, z = quat[0], quat[1], quat[2], quat[3]
-        # return np.asin(2 * ((w * y) - (z * x)))
-        return np.arctan2(2 * (x * z + w * y), w * w - x * x - y * y + z * z)
+        return np.asin(2 * ((w * y) - (z * x)))
 
     def _yaw(self):
         quat = self.data.qpos[3:7]  # w, x, y, z
@@ -137,13 +132,14 @@ class BracketBotEnv:
             dict: additonal information
         """
 
-        pitch, pitch_vel = obs[4], obs[6]
+        # pitch, pitch_vel = obs[4], obs[6]
+        roll, roll_vel = obs[6], obs[9]
 
-        angle_reward = np.cos(3 * pitch)  # zero at pi/4 = 45 degrees
+        angle_reward = np.cos(3 * roll)  # zero at pi/4 = 45 degrees
 
         action_penalty = np.sum(action**2)
 
-        velocity_penalty = pitch_vel**2
+        velocity_penalty = roll_vel**2
 
         alive = 1.0
 
@@ -165,8 +161,8 @@ class BracketBotEnv:
             "angle_reward": angle_reward,
             "action_penalty": action_penalty,
             "velocity_penalty": velocity_penalty,
-            "pitch_angle": pitch,
-            "pitch_angle_degree": np.rad2deg(pitch),
+            "roll_angle": roll,
+            "roll_angle_degree": np.rad2deg(roll),
             "reward": reward,
         }
 
@@ -184,22 +180,25 @@ class BracketBotEnv:
          3  | Y linear velocity of cart's base
          4  | Pitch angle of cart in radians
          5  | Yaw angle of cart in radians
-         6  | Cart angular velocity along y axis in radians (pitch velocity)
-         7  | Cart angular velocity along z axis in radians (yaw velocity)
-         8  | left wheel velocity
-         9  | right wheel velocity
+         6  | Roll angle of cart in radians
+         7  | Cart angular velocity along y axis in radians (pitch velocity)
+         8  | Cart angular velocity along z axis in radians (yaw velocity)
+         9  | Cart angular velocity along the x axis in radian (roll velocity)
+         10 | left wheel velocity
+         11 | right wheel velocity
         """
         q = self.data.qpos
         qd = self.data.qvel
 
         # will be used later, for now, using a full state discription
-        # roll = self._roll()
+        roll = self._roll()
         pitch = self._pitch()
         yaw = self._yaw()
 
         # vroll
         pitch_vel = qd[4]  # wy
         yaw_vel = qd[5]  # wz
+        roll_vel = qd[3]  # wx
 
         base_position = q[0:2]  # x, y
         base_velocity = qd[0:2]  # vx, vy
@@ -207,13 +206,15 @@ class BracketBotEnv:
 
         obs = np.concatenate(
             [
-                base_position,  # 0,1
-                base_velocity,  # 2,3
-                [pitch],  # 4
-                [yaw],  # 5
-                [pitch_vel],  # 6
-                [yaw_vel],  # 7
-                wheel_vel,  # 8, 9
+                base_position,
+                base_velocity,
+                [pitch],
+                [yaw],
+                [roll],
+                [pitch_vel],
+                [yaw_vel],
+                [roll_vel],
+                wheel_vel,
             ]
         )
         # dim = 10
@@ -248,9 +249,11 @@ if __name__ == "__main__":
     # obs = env.restart(seed=0)
     pitch_angles = []
     yaw_angles = []
+    roll_angles = []
     frames = []
-    for i in range(500):
+    for i in range(1000):
         rand_action = np.random.uniform(size=2)
+        # zero_action = np.zeros(2)
         obs, reward, done, info = env.step(rand_action)
         renderer.update_scene(env.data, camera="profile")
         frames.append(renderer.render())
@@ -258,15 +261,17 @@ if __name__ == "__main__":
 
         pitch_angles.append(np.rad2deg(obs[4]))
         yaw_angles.append(np.rad2deg(obs[5]))
+        roll_angles.append(np.rad2deg(obs[6]))
 
-        # if done:
-        #     print(f"Terminated: {info['reason']}, pitch: {info['pitch_angle_degree']}")
-        #     print(f"Accululated Reward: {total_reward}")
-        #     break
+        if done:
+            print(f"Terminated: {info['reason']}, pitch: {info['roll_angle_degree']}")
+            print(f"Accululated Reward: {total_reward}")
+
+            break
 
     """tracking pitch"""
 
-    fig, axs = plt.subplots(2, sharex=True)
+    fig, axs = plt.subplots(3)
     y = np.arange(len(pitch_angles))
 
     axs[0].plot(y, pitch_angles)
@@ -275,24 +280,29 @@ if __name__ == "__main__":
     axs[1].plot(y, yaw_angles)
     axs[1].set_title("Yaw")
 
+    axs[2].plot(y, roll_angles)
+    axs[2].set_title("Roll")
+    axs[2].plot(y, [60] * len(y))
+
     out_file = "rollout.mp4"
     cur_dir = os.path.dirname(os.path.abspath(__file__))
     out_path = os.path.join(cur_dir, out_file)
     media.write_video(out_path, frames, fps=27)
 
+    # """testing seed"""
+    # env.restart(seed=10)
+
+    # obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
+
+    # env.restart(seed=10)
+
+    # obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
+
+    # print(f"obs_1: {obs_1}, reward_1: {reward_1}")
+    # print(f"obs_2: {obs_2}, reward_2: {reward_2}")
+
+    # if np.array_equal(obs_1, obs_2):
+    #     print("Working as intended.")
+    #
+
     plt.show()
-
-    """testing seed"""
-    env.restart(seed=10)
-
-    obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
-
-    env.restart(seed=10)
-
-    obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
-
-    print(f"obs_1: {obs_1}, reward_1: {reward_1}")
-    print(f"obs_2: {obs_2}, reward_2: {reward_2}")
-
-    if np.array_equal(obs_1, obs_2):
-        print("Working as intended.")
