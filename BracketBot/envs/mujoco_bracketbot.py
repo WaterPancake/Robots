@@ -236,26 +236,27 @@ if __name__ == "__main__":
     import mujoco.renderer
 
     env = BracketBotEnv()
-    ctx = mujoco.GLContext(max_width=1280, max_height=720)
-    ctx.make_current()
+    # ctx = mujoco.GLContext(max_width=1280, max_height=720)
+    # ctx.make_current()
     renderer = mujoco.Renderer(env.model)
+    renderer.update_scene(env.data, camera="profile")
 
-    obs = env.restart(seed=0)
+    obs = env.restart(seed=421)
 
     # test a half episode
     total_reward = 0
-    obs = env.restart(seed=0)
+    # obs = env.restart(seed=0)
     pitch_angles = []
     yaw_angles = []
     frames = []
     for i in range(500):
         rand_action = np.random.uniform(size=2)
         obs, reward, done, info = env.step(rand_action)
-        renderer.update_scene(env.data)
+        renderer.update_scene(env.data, camera="profile")
         frames.append(renderer.render())
         total_reward += reward
 
-        pitch_angles.append(info["pitch_angle_degree"])
+        pitch_angles.append(np.rad2deg(obs[4]))
         yaw_angles.append(np.rad2deg(obs[5]))
 
         # if done:
