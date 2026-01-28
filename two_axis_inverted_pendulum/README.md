@@ -147,113 +147,68 @@ $$T = T_p + T_c + T_{r}$$
 $$V = m_p g \ell \cos(\theta_x) \cos(\theta_y) $$
 
 
-## Linearizing
+## Equation of motion
+
+To find the dynamics equations ($Q_i$) for each generalized coordinates ($q_i$) using:
+
+$$\frac{d}{dt}\left(\frac{\partial L}{\partial \dot q_i}\right) - \frac{\partial L}{\partial q_i} = Q_i$$
+
+In this system, the generalized coordinates are  $q =\begin{bmatrix} x_c & y_c & \theta_x & \theta_y\end{bmatrix}^T$, but there are variables in $L$ that are not in $q$. Expanding the Lagrangian to contain only the generalized coordinates is: 
+
+$$\begin{align}
+L  &= \frac{1}{2}\left(
+m_p (\dot x_p^2 + \dot y_p^2 + \dot z_p^2) + I (\dot \theta_x^2 + \dot \theta_y^2) + m_c (\dot x_c^2 + \dot y_c^2) \right)-m_p g \ell \cos(\theta_x) \cos(\theta_y)\notag \\ \notag \\ 
+&=\frac{1}{2}\left( m_p\left[ \left(\dot x_c + \ell\cos(\theta_x)\dot \theta_x\right)^2 + \left(\dot y_c +\ell\cos(\theta_y)\dot\theta_y \right)^2 + \left(-\ell \sin{(\theta_x)}\cos{(\theta_y)} \dot\theta_x - \ell \sin{(\theta_y)}\cos{(\theta_x)} \dot \theta_y\right)^2\right] + I(\dot\theta_x^2 + \dot\theta_y^2)  + m_c(\dot x_c^2 +\dot y_c^2)\right) -m_p g\ell\cos(\theta_x)\cos(\theta_y)\notag
+\end{align}$$
 
 
-We can find the equation of motion ($Q_i$) for each degree of freedom ($q_i$) using:
 
-$$\frac{d}{dt}\left(\frac{\partial L}{\partial \dot q}\right) - \frac{\partial L}{\partial q} = Q_i$$
+# Linear equations of motion.
+Applying the approximations to the equations of motions produces a pair of coupled equations ($\ddot x_c, \ddot\theta_x$) and ($\ddot y_c,\ddot\theta_y$):
 
-In this system the there are only four degrees of freedom $q =\begin{bmatrix} x & y & \theta_x & \theta_y\end{bmatrix}^T$
-
-
-
-$$L = \frac{1}{2}\left(
-m_p (\dot x_p^2 + \dot y_p^2 + \dot z_p^2) + I (\dot \theta_x^2 + \dot \theta_y^2) + m_c (\dot x_c^2 + \dot y_c^2) \right)
--
-m_p g \ell \cos(\theta_x) \cos(\theta_y)$$
-
-  
-  
-
-**Note**: Dropping second order terms found when evaluating the cart equation of motion
-  
-  
-  
-
-**Cart dynamics along x-axis:**
+$$\begin{align}
+\ddot x_c (m_c+m_p)+m_p\ell\theta_x=0 \\
+m_p\ell\ddot x_c+(I +m_p \ell^2)\ddot\theta_x+m_pg\ell\theta_x=0
+\end{align}$$
 
 
-$\frac{\partial L}{\partial \dot x} = \dot x(m_c + m_p) + m_p \ell \cos(\theta_x)\dot \theta_x$
+With these equations, the $A$ matrix can be derived, as the matrix which transforms the state $\textbf{x}$ into $\dot{\textbf{x}}$.
 
-  
+This can be done algebraically, solving for each variable of interest and subsitution, though linear algebra makes the process much easier as the coupled equations can be expressed as matrix multiplication as:
 
-$\frac{d}{dt} \left( \frac{\partial L}{\partial \dot x}\right) = \ddot x( m_c + m_p)+ m_p \ell \left(\cos(\theta_x)\ddot \theta_x - \sin(\theta_x)\dot \theta_x^2 \right)$
+$$\underbrace{\begin{bmatrix} (m_c+m_p) & m_p\ell \\ m_p\ell & I + m_p\ell^2 \end{bmatrix}}_M \begin{bmatrix} \ddot x_c \\ \ddot\theta_x\end{bmatrix} = \begin{bmatrix}0 \\-m_pg\ell\theta_x\end{bmatrix}$$
 
+The inverse of the $M$ matrix's is obtained via $\frac{1}{det(M)}\cdot M=M^{-1}$, and is used to solve for $\ddot x_c$ and $\ddot\theta_x$:
 
-$\frac{\partial L}{\partial x} = 0$
+$$\begin{bmatrix}\ddot x_c \\ \ddot \theta_x\end{bmatrix} = M^{-1}\begin{bmatrix}0 \\ -m_p g\ell\theta_x\end{bmatrix}=\frac{1}{D}\begin{bmatrix}-m_p^2\ell^2g\theta_x \\-(m_c+m_p)(m_pg\ell\theta_x)\end{bmatrix}$$
 
+Revealing the resulting coefficients to be:
+$$\large{\ddot x_c = \theta_x\frac{-m_p^2\ell g}{D}} = \theta_x \cdot p$$
 
-  
+$$\large{\ddot \theta_x = \theta_x\frac{-(m_c+m_p)(m_pg\ell)}{D}}= \theta_x\cdot q$$
 
-**Cart dynamics in y-axis:**
+By symmetry, the coefficients for the other state variables are:
 
-  
+$$\large{\ddot y_c = \theta_y\frac{-m_p^2\ell g}{D}} = \theta_y \cdot p$$
 
-$\frac{\partial L}{\partial \dot y} = \dot y(m_c + m_p) + m_p \ell \cos(\theta_y)\dot \theta_y$
-
-  
-
-$\frac{d}{dt} \left( \frac{\partial L}{\partial \dot x}\right) = \ddot y_c( m_c + m_p)+ m_p \ell \left(\cos(\theta_y)\ddot \theta_y - \sin(\theta_y)\dot \theta_y^2 \right)$
-
-$\frac{\partial L}{\partial y} = 0$
-  
-
-**Pole dynamics along x-axis**
-
-$\frac{\partial L}{\partial \dot \theta_y} = m_p \ell \cos(\theta_x) \dot x_c + m_p \ell^2 \dot \theta_x + I\dot \theta_x$
-
-$\frac{d}{dt} \left(\frac{\partial L}{\partial \dot \theta_y}\right) = m_p\ell\cos(\theta_x)\ddot x_c + m_p\ell \sin(\theta_x)\dot\theta_x\dot x_c + (m_p\ell^2 + I)\ddot \theta_x$
-
-$\frac{\partial L}{\partial \theta_x} =??? + m_p g\ell \sin(\theta_x)\cos(\theta_y)$
-
-$$\frac{1}{2}m_c \left((\dot x + \ell \cos(\theta_x)\dot \theta_x)^2 +\left[-\ell\sin(\theta_x)\cos(\theta_y)\dot\theta_x -\ell\sin(\theta_y)\cos(\theta_x)\dot \theta_y \right]^2\right) + \frac{1}{2}I(\dot\theta_x^2)+m_p​g\ell \cos(\theta_x)\cos(\theta_y)​$$
-
-A
-$$\dot x^2+2\dot x\ell\cos(\theta_x)\dot \theta_x + \ell^2\cos^2(\theta_x)\dot\theta_x^2$$
+$$\large{\ddot \theta_y= \theta_y\frac{-(m_c+m_p)(m_pg\ell)}{D}}= \theta_y\cdot q$$
 
 
-B
-$$\ell^2\sin^2(\theta_x)\cos^2(\theta_y)\dot \theta_x^2+2\ell^2\sin(\theta_x)\sin(\theta_y)\cos(\theta_x)\cos(\theta_y)\dot\theta_x\theta_y+\ell^2\sin^2(\theta_y)\cos^2(\theta_x)\dot\theta_y^2$$
-**Pole dynamics along y-axis**
+The $A$ matrix is therefore:
 
-$\frac{\partial L}{\partial \dot \theta_y} = m_p \ell \cos(\theta_y) \dot y_c + m_p \ell^2 \dot \theta_y + I\dot \theta_y$
+$$
+\begin{bmatrix} \dot x_c \\\dot y_c\\ \dot\theta_x \\ \dot\theta_y\\\ddot x_c \\ \ddot y_c \\ \ddot\theta_x \\ \ddot\theta_y\\\end{bmatrix}
+=\begin{bmatrix}
+0 &0 &0 &0 &1 &0 &0 &0  \\ 
+0 &0 &0 &0 &0 &1 &0 &0  \\
+0 &0 &0 &0 &0 &0 &1 &0  \\
+0 &0 &0 &0 &0 &0 &0 &1  \\
+0 &0 &p &0 &0 &0 &0 &0  \\
+0 &0 &q &0 &0 &0 &0 &0  \\
+0 &0 &0 &p &0 &0 &0 &0  \\
+0 &0 &0 &q &0 &0 &0 &0  \\\end{bmatrix}\cdot
+\begin{bmatrix} x \\y\\\theta_x \\\theta_y\\\dot x_c \\ \dot y_c \\\dot\theta_x \\ \dot\theta_y\\\end{bmatrix}$$
 
-$\frac{d}{dt} \left(\frac{\partial L}{\partial \dot \theta_y}\right) = m_p\ell\cos(\theta_y)\ddot y_c + m_p\ell \sin(\theta_y)\dot\theta_y\dot y_c + (m_\ell^2 + I)\ddot \theta_y$
-
-  $\frac{\partial L}{\partial \theta_y} =$
-  
-
-## Fixed Point
-
-
-For linearization, we consider fixed points of the form
-
-$$\bar{\textbf{x}} = \left[ x, y,\pi, \pi, 0, 0, 0, 0 \right]$$
-
-
-Where $x$ and $y$ are free variables. For the example notebook, the fixed point used is $\bar{\textbf{x}} = \left[0, 0, \pi, \pi, 0, 0, 0, 0 \right]^T$.
-
-  
-The processes of linearization the non-linear equation of motion into a the form:
-
-$$\dot{\textbf{x}} = A\textbf{x} + Bu$$
-
-where $A \in \mathbb{R}^{8 \times 8}$ and $B \in \mathbb{R}^{8 \times 2}$.
-
-
-To make getting dynamics easier, using the following approximations:
-
-- $\sin(\theta) \approx \theta$
-
-- $\cos(\theta) \approx 1$
-
-- $\sin(\theta)\cos(\theta) \approx 0$
-
-- $\dot \theta^2 \approx 0$
-
-The simplified equation can be found in `LQRcontroller.py:w`
-  
 
 ## Cost-To-Go
 
@@ -274,11 +229,6 @@ $R = \begin{bmatrix} 1 &  1 \end{bmatrix}^T$
 
 Puts emphasis on controlling $\theta_x$ and $\theta_y$ but also concerned with control of the cart to its desired position.
 
-Using out linear approximation $\dot x(t) = Ax + Bu$.
+Using out linear approximation $\dot x(t) = Ax(t) + Bu(t)$.
 
 The solution $J$ has the closed form known as the Continuous Algebraic Riccati Equation which can be solved in code using `scipy.linalg.solve_continuous_are(A, B, Q, R)`. The return is a gain matrix $K$ which provides the optimal solution for the system for a discrete time step $-K = u$.
-
-
-# Controllability Analysis:
-
-- Look at eigenvalues of the system for controllability.

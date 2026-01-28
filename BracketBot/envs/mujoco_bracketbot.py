@@ -49,7 +49,7 @@ class BracketBotEnv:
     def seed(self, seed: int):
         self.rng = np.random.default_rng(seed)
 
-    def restart(self, seed: int = -1) -> np.ndarray:
+    def reset(self, seed: int = -1) -> np.ndarray:
         if seed != -1:
             self.seed(seed)
 
@@ -132,7 +132,6 @@ class BracketBotEnv:
             dict: additonal information
         """
 
-        # pitch, pitch_vel = obs[4], obs[6]
         roll, roll_vel = obs[6], obs[9]
 
         angle_reward = np.cos(3 * roll)  # zero at pi/4 = 45 degrees
@@ -180,7 +179,7 @@ class BracketBotEnv:
          3  | Y linear velocity of cart's base
          4  | Pitch angle of cart in radians
          5  | Yaw angle of cart in radians
-         6  | Roll angle of cart in radians
+         6  | Roll angle of cart in radians (what is used by reward function)
          7  | Cart angular velocity along y axis in radians (pitch velocity)
          8  | Cart angular velocity along z axis in radians (yaw velocity)
          9  | Cart angular velocity along the x axis in radian (roll velocity)
@@ -217,11 +216,11 @@ class BracketBotEnv:
                 wheel_vel,
             ]
         )
-        # dim = 10
+        # dim = 12
 
         return obs.astype(np.float32)
-        # return np.concatenate(q, qd)
 
+        """Minimized version"""
     @property
     def _act_dim(self) -> int:
         return self.act_dim
@@ -231,7 +230,9 @@ class BracketBotEnv:
         return self.obs_dim
 
 
+#
 # for testing
+#
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import mujoco.renderer
@@ -242,11 +243,11 @@ if __name__ == "__main__":
     renderer = mujoco.Renderer(env.model)
     renderer.update_scene(env.data, camera="profile")
 
-    obs = env.restart(seed=421)
+    obs = env.reset(seed=421)
 
     # test a half episode
     total_reward = 0
-    # obs = env.restart(seed=0)
+    # obs = env.reset(seed=0)
     pitch_angles = []
     yaw_angles = []
     roll_angles = []
@@ -289,20 +290,20 @@ if __name__ == "__main__":
     out_path = os.path.join(cur_dir, out_file)
     media.write_video(out_path, frames, fps=27)
 
-    # """testing seed"""
-    # env.restart(seed=10)
+    """testing seed's reproducability"""
+     env.reset(seed=10)
 
-    # obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
+     obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
 
-    # env.restart(seed=10)
+     env.reset(seed=10)
 
-    # obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
+     obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
 
-    # print(f"obs_1: {obs_1}, reward_1: {reward_1}")
-    # print(f"obs_2: {obs_2}, reward_2: {reward_2}")
+     print(f"obs_1: {obs_1}, reward_1: {reward_1}")
+     print(f"obs_2: {obs_2}, reward_2: {reward_2}")
 
-    # if np.array_equal(obs_1, obs_2):
-    #     print("Working as intended.")
-    #
+     if np.array_equal(obs_1, obs_2):
+         print("Working as intended.")
+    
 
     plt.show()
