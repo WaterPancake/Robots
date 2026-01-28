@@ -49,6 +49,7 @@ class BracketBotEnv:
     def seed(self, seed: int):
         self.rng = np.random.default_rng(seed)
 
+    # FIX: seeds functionality
     def reset(self, seed: int = -1) -> np.ndarray:
         if seed != -1:
             self.seed(seed)
@@ -80,7 +81,7 @@ class BracketBotEnv:
             dict: additonal information
         """
 
-        action = np.clip(action, self.min_action, self.max_action)
+        action = np.clip(action, self.min_action, self.max_action)  # [-1.0, 1.0]
         self.data.ctrl = action
 
         for _ in range(self.n_frames):
@@ -221,6 +222,7 @@ class BracketBotEnv:
         return obs.astype(np.float32)
 
         """Minimized version"""
+
     @property
     def _act_dim(self) -> int:
         return self.act_dim
@@ -238,8 +240,6 @@ if __name__ == "__main__":
     import mujoco.renderer
 
     env = BracketBotEnv()
-    # ctx = mujoco.GLContext(max_width=1280, max_height=720)
-    # ctx.make_current()
     renderer = mujoco.Renderer(env.model)
     renderer.update_scene(env.data, camera="profile")
 
@@ -291,19 +291,19 @@ if __name__ == "__main__":
     media.write_video(out_path, frames, fps=27)
 
     """testing seed's reproducability"""
-     env.reset(seed=10)
+    env.reset(seed=10)
 
-     obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
+    obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
 
-     env.reset(seed=10)
+    env.reset(seed=10)
 
-     obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
+    obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
 
-     print(f"obs_1: {obs_1}, reward_1: {reward_1}")
-     print(f"obs_2: {obs_2}, reward_2: {reward_2}")
+    print(f"obs_1: {obs_1}, reward_1: {reward_1}")
+    print("\n")
+    print(f"obs_2: {obs_2}, reward_2: {reward_2}")
 
-     if np.array_equal(obs_1, obs_2):
-         print("Working as intended.")
-    
+    if np.array_equal(obs_1, obs_2):
+        print("Working as intended.")
 
     plt.show()
