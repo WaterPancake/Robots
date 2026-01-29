@@ -10,6 +10,7 @@ class EnvConfig:
     pass
 
 
+# class BracketBotEnv:
 class BracketBotEnv:
     def __init__(
         self, xml_path="../assets/BracketBot.xml", render_width=1280, render_height=720
@@ -94,7 +95,7 @@ class BracketBotEnv:
 
         info = {"step": self.step_count, "reason": reason, **reward_info}
 
-        return obs, reward, done, info
+        return obs, float(reward), done, info
 
     def _terminate(self, obs) -> tuple[bool, str]:
         """

@@ -8,6 +8,14 @@ import torch.nn as nn
 # from torch.distributed import Normal
 
 
+"""
+Object for data collected over minibatch
+"""
+class RolloutBuffer:
+    def __init__(self, num_steps, num_envs, obs_dim, act_dim):
+
+        
+
 class ActorCritic(nn.Module):
     def __init__(self, obs_dim: int, act_dim: int, hidden_dim: list[int] = [256, 256]):
         super().__init__()
@@ -41,7 +49,6 @@ class ActorCritic(nn.Module):
 
         self._init_weights()
 
-    # Don't fully understand
     def _init_weights(self):
         # where does m.weight and m.bias come from?
         for m in self.modules():
@@ -56,8 +63,14 @@ class ActorCritic(nn.Module):
         if isinstance(obs, np.ndarray):
             obs = torch.tensor(obs, dtype=torch.float32)
 
+        # take action
+
     def inference_fn(self, obs: torch.Tensor):
         pass
 
     def eval_action(self, obs: torch.Tensor, action: torch.Tensor):
         pass
+
+    def updatre(self):
+        pass
+
