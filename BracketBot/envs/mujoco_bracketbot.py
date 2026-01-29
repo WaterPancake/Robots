@@ -1,4 +1,5 @@
 import mujoco
+import mujoco.renderer
 import numpy as np
 import os
 from typing import Optional
@@ -23,11 +24,10 @@ class BracketBotEnv:
         self.data = mujoco.MjData(self.model)
 
         # Rendering params (lazy initialization)
-        self.render_width = render_width
-        self.render_height = render_height
-        self._renderer = None
-        self._gl_context = None
-        self.frames = []
+        self.renderer = mujoco.Renderer(self.model)
+        self.renderer.update_scene(self.data)
+
+        self.frames = [self.renderer.render()]
 
         # Mujoco Backend params
         self.n_frames = 2
@@ -69,6 +69,7 @@ class BracketBotEnv:
 
         self.step_count = 0
         self.frames = []
+        self.renderer = mujoco.Renderer(self.model)
 
         return self._obs()
 
@@ -92,6 +93,9 @@ class BracketBotEnv:
         obs = self._obs()
         reward, reward_info = self._reward(obs, action)
         done, reason = self._terminate(obs)
+
+        self.renderer.update_scene(self.data)
+        self.frames.append(self.renderer.render())
 
         info = {"step": self.step_count, "reason": reason, **reward_info}
 
@@ -257,8 +261,8 @@ if __name__ == "__main__":
         rand_action = np.random.uniform(size=2)
         # zero_action = np.zeros(2)
         obs, reward, done, info = env.step(rand_action)
-        renderer.update_scene(env.data, camera="profile")
-        frames.append(renderer.render())
+        # renderer.update_scene(env.data, camera="profile")
+        # frames.append(renderer.render())
         total_reward += reward
 
         pitch_angles.append(np.rad2deg(obs[4]))
@@ -286,10 +290,11 @@ if __name__ == "__main__":
     axs[2].set_title("Roll")
     axs[2].plot(y, [60] * len(y))
 
-    out_file = "rollout.mp4"
+    rollout_frames = env.frames
+    out_file = "rollout0.mp4"
     cur_dir = os.path.dirname(os.path.abspath(__file__))
     out_path = os.path.join(cur_dir, out_file)
-    media.write_video(out_path, frames, fps=27)
+    media.write_video(out_path, rollout_frames, fps=60)
 
     """testing seed's reproducability"""
     env.reset(seed=10)
