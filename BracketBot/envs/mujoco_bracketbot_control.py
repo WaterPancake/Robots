@@ -10,8 +10,7 @@ class EnvConfig:
     pass
 
 
-# class BracketBotEnv:
-class BracketBotEnv:
+class BracketBotCntrEnv:
     def __init__(
         self, xml_path="../assets/BracketBot.xml", render_width=1280, render_height=720
     ):
@@ -32,12 +31,14 @@ class BracketBotEnv:
         self.n_frames = 2
 
         # Dim Space
-        self.obs_dim = 12  # see obs() for details
+        self.obs_dim = 14  # see obs() for details
         self.act_dim = 2  # [left_wheel_vel, right_wheel_vel]
 
         # Action Space
         self.min_action = -1.0
         self.max_action = 1.0
+
+        self._command = np.zeros(2)
 
         self.step_count = 0
 
@@ -72,6 +73,13 @@ class BracketBotEnv:
         self.renderer = mujoco.Renderer(self.model)
 
         return self._obs()
+
+    def control(self, forward_vel, turn_vel):
+        self._command[0] = np.clip(
+            forward_vel, min=self.min_action, max=self.max_action
+        )
+
+        self._command[0] = np.clip(turn, min=self.min_action, max=self.max_action)
 
     # FIX: time limi?
     def step(self, action: np.array) -> tuple[np.ndarray, float, bool, dict]:
@@ -139,26 +147,49 @@ class BracketBotEnv:
             dict: additonal information
         """
 
+        cmd_forward = obs[12]
+        cmd_turn = obs[13]
+
         roll, roll_vel = obs[6], obs[9]
 
-        angle_reward = np.cos(3 * roll)  # zero at pi/4 = 45 degrees
+        yaw, yaw_vel = obs[5], obs[8]
 
-        action_penalty = np.sum(action**2)
+        # Balancing reward
+        angle_reward = np.cos(3 * roll)  # zero at pi/4 = 45 degrees
 
         velocity_penalty = roll_vel**2
 
-        alive = 1.0
+        action_penalty = np.sum(action**2)
 
+        # Command rewards
+        vx, vy = obs[2], obs[3]
+        forward_vel = vx * np.cos(vx) + vy * np.sin(vy)
+
+        forward_error = (forward_vel - cmd_forward) ** 2
+        turn_error = np.exp(yaw_vel - cmd_turn) ** 2
+
+        # evals to 1 when both command and bot vel match
+        forward_reward = np.exp(-forward_error)
+        turn_reward = np.exp(-turn_error)
+
+        # reward weights
         angle_weight = 1.0
         action_weight = 0.01
         velocity_weight = 0.1
         alive_weight = 0.1
+        alive = 1.0
+
+        forward_vel_weight = 1.0
+        turn_vel_weight = 0.5
 
         reward = (
             (angle_weight * angle_reward)
             + (alive_weight * alive)
             - (velocity_penalty * velocity_weight)
             - (action_weight * action_penalty)
+            # command
+            + (forward_vel_weight * forward_reward)
+            + (turn_vel_weight * turn_reward)
         )
 
         reward_info = {
@@ -167,6 +198,8 @@ class BracketBotEnv:
             "velocity_penalty": velocity_penalty,
             "roll_angle": roll,
             "roll_angle_degree": np.rad2deg(roll),
+            "forward_vel": forward_vel,
+            "turn_vel": yaw,
             "reward": reward,
         }
 
@@ -190,6 +223,9 @@ class BracketBotEnv:
          9  | Cart angular velocity along the x axis in radian (roll velocity)
          10 | left wheel velocity
          11 | right wheel velocity
+
+         12 | forward command velocity
+         13 | turn command velocoty
         """
         q = self.data.qpos
         qd = self.data.qvel
@@ -219,6 +255,7 @@ class BracketBotEnv:
                 [yaw_vel],
                 [roll_vel],
                 wheel_vel,
+                self._command,
             ]
         )
         # dim = 12
@@ -243,7 +280,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import mujoco.renderer
 
-    env = BracketBotEnv()
+    env = BracketBotCntrEnv()
     renderer = mujoco.Renderer(env.model)
     renderer.update_scene(env.data, camera="profile")
 
