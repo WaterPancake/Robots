@@ -205,7 +205,7 @@ $$\begin{bmatrix} \dot x_c \\\dot y_c\\ \dot\theta_x \\ \dot\theta_y\\\ddot x_c 
 0 &0 &q &0 &0 &0 &0 &0  \\
 0 &0 &0 &p &0 &0 &0 &0  \\
 0 &0 &0 &q &0 &0 &0 &0  \\ \end{bmatrix}\cdot
-\begin{bmatrix} x \\y\\\theta_x \\\theta_y\\\dot x_c \\ \dot y_c \\\dot\theta_x \\ \dot\theta_y\\\end{bmatrix}$$
+\begin{bmatrix} x \\ y \\ \theta_x \\ \theta_y \\ \dot x_c \\ \dot y_c \\ \dot \theta_x \\ \dot\theta_y\\ \end{bmatrix}$$
 
 
 ## Cost-To-Go
