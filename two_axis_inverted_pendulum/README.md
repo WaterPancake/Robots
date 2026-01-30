@@ -178,7 +178,7 @@ This can be done algebraically, solving for each variable of interest and subsit
 
 $$\underbrace{\begin{bmatrix} (m_c+m_p) & m_p\ell \\ m_p\ell & I + m_p\ell^2 \end{bmatrix}}_M \begin{bmatrix} \ddot x_c \\ \ddot\theta_x\end{bmatrix} = \begin{bmatrix}0 \\-m_pg\ell\theta_x\end{bmatrix}$$
 
-The inverse of the $M$ matrix's is obtained via $\frac{1}{det(M)}\cdot M=M^{-1}$, and is used to solve for $\ddot x_c$ and $\ddot\theta_x$:
+The inverse of the $M$ matrix's is obtained via $\frac{1}{det(M)} \cdot M=M^{-1}$, and is used to solve for $\ddot x_c$ and $\ddot\theta_x$:
 
 $$\begin{bmatrix}\ddot x_c \\ \ddot \theta_x\end{bmatrix} = M^{-1}\begin{bmatrix}0 \\ -m_p g\ell\theta_x\end{bmatrix}=\frac{1}{D}\begin{bmatrix}-m_p^2\ell^2g\theta_x \\-(m_c+m_p)(m_pg\ell\theta_x)\end{bmatrix}$$
 
@@ -196,9 +196,7 @@ $$\large{\ddot \theta_y= \theta_y\frac{-(m_c+m_p)(m_pg\ell)}{D}}= \theta_y\cdot 
 
 The $A$ matrix is therefore:
 
-$$
-\begin{bmatrix} \dot x_c \\\dot y_c\\ \dot\theta_x \\ \dot\theta_y\\\ddot x_c \\ \ddot y_c \\ \ddot\theta_x \\ \ddot\theta_y\\\end{bmatrix}
-=\begin{bmatrix}
+$$\begin{bmatrix} \dot x_c \\\dot y_c\\ \dot\theta_x \\ \dot\theta_y\\\ddot x_c \\ \ddot y_c \\ \ddot\theta_x \\ \ddot\theta_y\\\end{bmatrix} =\begin{bmatrix}
 0 &0 &0 &0 &1 &0 &0 &0  \\ 
 0 &0 &0 &0 &0 &1 &0 &0  \\
 0 &0 &0 &0 &0 &0 &1 &0  \\
@@ -206,7 +204,7 @@ $$
 0 &0 &p &0 &0 &0 &0 &0  \\
 0 &0 &q &0 &0 &0 &0 &0  \\
 0 &0 &0 &p &0 &0 &0 &0  \\
-0 &0 &0 &q &0 &0 &0 &0  \\\end{bmatrix}\cdot
+0 &0 &0 &q &0 &0 &0 &0  \\ \end{bmatrix}\cdot
 \begin{bmatrix} x \\y\\\theta_x \\\theta_y\\\dot x_c \\ \dot y_c \\\dot\theta_x \\ \dot\theta_y\\\end{bmatrix}$$
 
 

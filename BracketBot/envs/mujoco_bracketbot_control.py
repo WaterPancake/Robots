@@ -35,8 +35,11 @@ class BracketBotCntrEnv:
         self.act_dim = 2  # [left_wheel_vel, right_wheel_vel]
 
         # Action Space
-        self.min_action = -1.0
-        self.max_action = 1.0
+        self.forward_min_action = -1.0
+        self.forward_max_action = 1.0
+
+        self.turn_min_action = -0.5
+        self.turn_max_action = 0.5
 
         self._command = np.zeros(2)
 
@@ -74,14 +77,32 @@ class BracketBotCntrEnv:
 
         return self._obs()
 
+    def create_rand_control(self):
+        """
+        For training only
+        """
+
+        rand_forward = self.rng.uniform(
+            low=self.forward_min_action, high=self.forward_max_action, size=1
+        )
+
+        rand_turn = self.rng.uniform(
+            low=self.turn_min_action, high=self.turn_max_action, size=1
+        )
+
+        self.control(rand_forward, rand_turn)
+
     def control(self, forward_vel, turn_vel):
+        """
+        Note: Control signal is send the system once at the begining of the the call to step(). No additonal signal is send during the self.n_frame
+            calls to mj_step()
+        """
         self._command[0] = np.clip(
             forward_vel, min=self.min_action, max=self.max_action
         )
 
-        self._command[0] = np.clip(turn, min=self.min_action, max=self.max_action)
+        self._command[1] = np.clip(turn_vel, min=self.min_action, max=self.max_action)
 
-    # FIX: time limi?
     def step(self, action: np.array) -> tuple[np.ndarray, float, bool, dict]:
         # borrowing Gymnaisum return format for later to compare it to using  Gymnasium env approach
         """
@@ -93,12 +114,14 @@ class BracketBotCntrEnv:
         """
 
         action = np.clip(action, self.min_action, self.max_action)  # [-1.0, 1.0]
-        self.data.ctrl = action
+        self.data.ctrl[:] = action
 
         for _ in range(self.n_frames):
+            # random movement
             mujoco.mj_step(self.model, self.data)
 
         self.step_count += 1
+
         obs = self._obs()
         reward, reward_info = self._reward(obs, action)
         done, reason = self._terminate(obs)
@@ -272,80 +295,83 @@ class BracketBotCntrEnv:
     def _obs_dim(self) -> int:
         return self.obs_dim
 
+    """
+    Control is with WASD 
+    """
 
-#
-# for testing
-#
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    import mujoco.renderer
+    def keyboard_control()
 
-    env = BracketBotCntrEnv()
-    renderer = mujoco.Renderer(env.model)
-    renderer.update_scene(env.data, camera="profile")
 
-    obs = env.reset(seed=421)
+# if __name__ == "__main__":
+#     import matplotlib.pyplot as plt
+#     import mujoco.renderer
 
-    # test a half episode
-    total_reward = 0
-    # obs = env.reset(seed=0)
-    pitch_angles = []
-    yaw_angles = []
-    roll_angles = []
-    frames = []
-    for i in range(1000):
-        rand_action = np.random.uniform(size=2)
-        # zero_action = np.zeros(2)
-        obs, reward, done, info = env.step(rand_action)
-        # renderer.update_scene(env.data, camera="profile")
-        # frames.append(renderer.render())
-        total_reward += reward
+#     env = BracketBotCntrEnv()
+#     renderer = mujoco.Renderer(env.model)
+#     renderer.update_scene(env.data, camera="profile")
 
-        pitch_angles.append(np.rad2deg(obs[4]))
-        yaw_angles.append(np.rad2deg(obs[5]))
-        roll_angles.append(np.rad2deg(obs[6]))
+#     obs = env.reset(seed=421)
 
-        if done:
-            print(f"Terminated: {info['reason']}, pitch: {info['roll_angle_degree']}")
-            print(f"Accululated Reward: {total_reward}")
+#     # test a half episode
+#     total_reward = 0
+#     # obs = env.reset(seed=0)
+#     pitch_angles = []
+#     yaw_angles = []
+#     roll_angles = []
+#     frames = []
+#     for i in range(1000):
+#         rand_action = np.random.uniform(size=2)
+#         # zero_action = np.zeros(2)
+#         obs, reward, done, info = env.step(rand_action)
+#         # renderer.update_scene(env.data, camera="profile")
+#         # frames.append(renderer.render())
+#         total_reward += reward
 
-            break
+#         pitch_angles.append(np.rad2deg(obs[4]))
+#         yaw_angles.append(np.rad2deg(obs[5]))
+#         roll_angles.append(np.rad2deg(obs[6]))
 
-    """tracking pitch"""
+#         if done:
+#             print(f"Terminated: {info['reason']}, pitch: {info['roll_angle_degree']}")
+#             print(f"Accululated Reward: {total_reward}")
 
-    fig, axs = plt.subplots(3)
-    y = np.arange(len(pitch_angles))
+#             break
 
-    axs[0].plot(y, pitch_angles)
-    axs[0].set_title("Pitch")
+#     """tracking pitch"""
 
-    axs[1].plot(y, yaw_angles)
-    axs[1].set_title("Yaw")
+#     fig, axs = plt.subplots(3)
+#     y = np.arange(len(pitch_angles))
 
-    axs[2].plot(y, roll_angles)
-    axs[2].set_title("Roll")
-    axs[2].plot(y, [60] * len(y))
+#     axs[0].plot(y, pitch_angles)
+#     axs[0].set_title("Pitch")
 
-    rollout_frames = env.frames
-    out_file = "rollout0.mp4"
-    cur_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(cur_dir, out_file)
-    media.write_video(out_path, rollout_frames, fps=60)
+#     axs[1].plot(y, yaw_angles)
+#     axs[1].set_title("Yaw")
 
-    """testing seed's reproducability"""
-    env.reset(seed=10)
+#     axs[2].plot(y, roll_angles)
+#     axs[2].set_title("Roll")
+#     axs[2].plot(y, [60] * len(y))
 
-    obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
+#     rollout_frames = env.frames
+#     out_file = "rollout0.mp4"
+#     cur_dir = os.path.dirname(os.path.abspath(__file__))
+#     out_path = os.path.join(cur_dir, out_file)
+#     media.write_video(out_path, rollout_frames, fps=60)
 
-    env.reset(seed=10)
+#     """testing seed's reproducability"""
+#     env.reset(seed=10)
 
-    obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
+#     obs_1, reward_1, done, info = env.step(np.array([1.0, 1.0]))
 
-    print(f"obs_1: {obs_1}, reward_1: {reward_1}")
-    print("\n")
-    print(f"obs_2: {obs_2}, reward_2: {reward_2}")
+#     env.reset(seed=10)
 
-    if np.array_equal(obs_1, obs_2):
-        print("Working as intended.")
+#     obs_2, reward_2, done, info = env.step(np.array([1.0, 1.0]))
 
-    plt.show()
+#     print(f"obs_1: {obs_1}, reward_1: {reward_1}")
+#     print("\n")
+#     print(f"obs_2: {obs_2}, reward_2: {reward_2}")
+
+#     if np.array_equal(obs_1, obs_2):
+#         print("Working as intended.")
+
+#     plt.show()

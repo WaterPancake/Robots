@@ -112,9 +112,6 @@ class TwoAxisInvertedPendulum(PipelineEnv):
 
         return 4 * balance_reward - distance_penalty
 
-    def _reward_3(self, pipeline_state: base.State, action: jax.Array):
-        pass
-
     def _to_terminate(self, pipeline_state) -> bool:
         """
         state terminates when the pendulum falls at and bellow parallel with the ground
@@ -122,10 +119,6 @@ class TwoAxisInvertedPendulum(PipelineEnv):
         # angle of pole expressed in radians
         pendulum_x_angle, pendulum_y_angle = pipeline_state.q[2:4]
 
-        # 1.57 radians ~ 90 degrees
-        # done = (jp.abs(pendulum_x_angle) > 1.57) | (jp.abs(pendulum_y_angle) > 1.57)
-
-        # 2.9 radians ~ 170 degrees
         done = (jp.abs(pendulum_x_angle) > 2.9) | (jp.abs(pendulum_y_angle) > 2.9)
 
         return done.astype(jp.float32)
