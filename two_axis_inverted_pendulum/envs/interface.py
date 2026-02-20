@@ -28,6 +28,8 @@ class TwoAxisInvertedPendulum:
             self.data.qpos[2:4] = angle
             # mujoco.mj_step(self.model, self.data)
 
+            # add also random elements to qvel
+
     def get_obs(self):
         """
         | Idx | Observation                                                |
@@ -54,21 +56,14 @@ class TwoAxisInvertedPendulum:
         return x
 
     def control(self, action: np.ndarray) -> np.ndarray:
-        self.data.ctrl[:] = np.clip(action, self.minAct_val, self.maxAct_val)
+        # self.data.ctrl[:] = np.clip(action, self.minAct_val, self.maxAct_val)
+
+        self.data.ctrl[:] = action
         mujoco.mj_step(self.model, self.data)
 
 
 if __name__ == "__main__":
     sys = TwoAxisInvertedPendulum()
-
-    # x = sys.get_obs_2p()
-    # print(x)
-
-    # rand_action = random.uniform(-1, 1, size=2)
-    # sys.control(rand_action)
-
-    # x = sys.get_obs_2p()
-    # print(x)
 
     rng = random.default_rng(1)
     sys.reset(rng)
