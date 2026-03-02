@@ -52,10 +52,8 @@ The $4$ coefficient is to offset the difference in the range of possible values 
 
 
 
-## Training
 
-
-# Linear-Quadradic-Regulator 
+# Algorithmic Control
 
 **NOTE**: This section uses a different XML model of the inverted two-axis pendulum so that it more accurately represents how the version found in [MIT's Underacuated Robotics](https://underactuated.csail.mit.edu/acrobot.html) with the following parameters for the Cart Pole:
 
@@ -121,7 +119,9 @@ $$L = T - V$$
 where $T$ and $V$ represent the kinetic and potential energy of the system respectively.
   
 
-**Kinetic Energy**
+### **Kinetic Energy**
+
+Applying  the equation for Kinetic Energy ($KE = \frac{1}{2}mv^2$) yields:
 
 
 $$T_p = \frac{1}{2} m_p(\dot x_p^2 + \dot y_p^2 + \dot z_p^2)$$
@@ -129,31 +129,30 @@ $$T_p = \frac{1}{2} m_p(\dot x_p^2 + \dot y_p^2 + \dot z_p^2)$$
 
 $$T_c = \frac{1}{2} m_c(\dot x_c^2 + \dot y_c^2)$$
 
-The added degree of movement requires that we also consider energy of poles angular movement (rotational kinetic energy) which is:
+
+We must also consider the angular movement or rotational kinetic energy of the pole in our equation ($KE = \frac{1}{2} \omega v^2$), 
 
   
 $$T_{r} = \frac{1}{2} I (\dot \theta_x^2 + \theta_y^2)$$
 
-where $I = m_p \ell^2$.
-
-Thus the total kinetic energy defined as: 
+where $I = m_p \ell^2$ represents the moment of inertia of the pendulum mass. Thus the total kinetic energy defined as: 
 
 $$T = T_p + T_c + T_{r}$$
 
-**Potential Energy**
+### **Potential Energy**
 
- The only possible source of potential energy is the pendulum's movement as a result of the gravitational force.
+The only possible source of potential energy is the pendulum's movement as a result of the gravitational force.
 
 $$V = m_p g \ell \cos(\theta_x) \cos(\theta_y) $$
 
 
 ## Equation of motion
 
-To find the dynamics equations ($Q_i$) for each generalized coordinates ($q_i$) using:
+Using the methods of Legrange, we can write the equation of motion using generalized cordinates. The dynamics equations ($Q_i$) for the generalized coordinates ($q_i$) is obtained from the equation:
 
 $$\frac{d}{dt}\left(\frac{\partial L}{\partial \dot q_i}\right) - \frac{\partial L}{\partial q_i} = Q_i$$
 
-In this system, the generalized coordinates are  $q =\begin{bmatrix} x_c & y_c & \theta_x & \theta_y\end{bmatrix}^T$, but there are variables in $L$ that are not in $q$. Expanding the Lagrangian to contain only the generalized coordinates is: 
+ForIn this system, the generalized coordinates choosen are $q =\begin{bmatrix} x_c & y_c & \theta_x & \theta_y\end{bmatrix}^T$. Since there are variables in $L$ that are not in $q$, subsituting them for their equivalent to contain only values from $q$ reveals:
 
 $$\begin{align}
 L  &= \frac{1}{2}\left(
@@ -162,23 +161,100 @@ m_p (\dot x_p^2 + \dot y_p^2 + \dot z_p^2) + I (\dot \theta_x^2 + \dot \theta_y^
 \end{align}$$
 
 
+## Dynamics Equaiton
 
-# Linear equations of motion.
+### $x_c$
+
+- $\frac{\partial L}{\partial \dot x_c}$ 
+$$\boxed{\dot x_c(m_c + m_p) + m_p \ell \cos(\theta_x)\dot \theta_x}$$
+
+  
+- $\frac{d}{dt} \left( \frac{\partial L}{\partial \dot x_c}\right)$
+$$\boxed{\ddot x_c( m_c + m_p)+ m_p \ell \left(\cos(\theta_x)\ddot \theta_x - \sin(\theta_x)\dot \theta_x^2 \right)}$$
+
+
+- $\frac{\partial L}{\partial x_c}$
+$$\boxed{0}$$
+
+- $F_x$
+$$\boxed{F_x = \ddot x_c(m_c+m_p) + m_p\ell\left(\cos(\theta_x)\ddot \theta_x-\sin(\theta_x)\dot \theta_x^2 \right)}$$
+
+
+
+### $\theta_x$
+
+- $\frac{\partial L}{\partial \dot \theta_x}$
+
+
+$$m_p\ell\cos(\theta_x)\dot x_c+\dot{\theta_x}\left[m_p\ell^2\cos^2(\theta_x)+m_p\ell^2\sin^2(\theta_x)\cos^2(\theta_y)+ I\right] + m_p\ell^2\sin(\theta_x)\sin(\theta_y)\cos(\theta_x)\cos(\theta_y)\dot \theta_y$$
+
+Applying some approximations to make the equations easier to work with. 
+
+- $\cos^2(\theta) \approx 1$
+- $\sin^2(\theta) \approx 0$
+- $\sin(\theta_x)\sin(\theta_y)\cos(\theta_x)\cos(\theta_y) \approx 0$
+- $\cos(\theta)\sin(\theta) \approx 0$
+
+$$\boxed{m_p\ell\cos(\theta_x)\dot x_c + \dot \theta_x\left[m_p\ell^2 +I\right]}$$
+
+
+
+- $\frac{d}{dt}\left(\frac{\partial L}{\partial \dot \theta_x}\right)$
+
+
+$$\boxed{m_p\ell\cos(\theta_x)\ddot x-m_p\ell\sin(\theta_x)\dot\theta_x\dot x+\ddot\theta_x[m_p\ell^2+I]}$$
+
+
+
+- $\frac{\partial L}{\partial \theta_x}$
+
+$$\boxed{m_p\left[(\dot x + \ell\cos(\theta_x)\dot\theta_x)\cdot(-\sin(\theta_x)\dot\theta_x) + (-\ell\sin(\theta_x)\cos(\theta_y)\dot\theta_x-\ell\sin(\theta_y)\cos(\theta_x)\dot\theta_y)\cdot(\ell\sin(\theta_y)\sin(\theta_x)\dot\theta_y-\ell\cos(\theta_x)\cos(\theta_y)\dot\theta_x)\right]+m_pg\ell\sin(\theta_x)\cos(\theta_y)}$$
+
+
+
+
+
+- $F_{\theta_x}$
+
+After applying small angle approximations, 
+
+$$\boxed{m_p\ell\cos(\theta_x)\ddot x_c+\ddot\theta_x[m_p\ell^2+I]+m_p\ell^2\sin(\theta_x)\cos(\theta_y)\dot\theta_x^2+m_pg\ell\sin(\theta_x)\cos(\theta_y)}$$
+
+**N.B.** I also have work that shows that the last term should be subtracted instead! To lazy to do again.
+
+
+
+# Linearizing equations of motion.
+
+In order to fit the equations of motion into linear equations of the form $\dot x = Ax + Bu$, non-linear variables must be removed. The fixed point selected will make subsitutions, namely:
+
+- $\theta^2 \approx 0$
+- $\cos(\theta) \approx 1$
+- $\sin(\theta) \approx \theta$
+- $\sin^2(\theta \approx 0$
+- $\cos^2(\theta) \approx 1$
+
+
+
+
 Applying the approximations to the equations of motions produces a pair of coupled equations ($\ddot x_c, \ddot\theta_x$) and ($\ddot y_c,\ddot\theta_y$):
 
 $$\begin{align}
-\ddot x_c (m_c+m_p)+m_p\ell\theta_x=0 \\
-m_p\ell\ddot x_c+(I +m_p \ell^2)\ddot\theta_x+m_pg\ell\theta_x=0
+\nonumber
+\ddot x_c (m_c+m_p)+m_p\ell \ddot\theta_x=0 \\
+ \nonumber
+m_p\ell\ddot x_c+\ddot\theta_x(I +m_p \ell^2)+m_pg\ell\theta_x=0
 \end{align}$$
 
 
-With these equations, the $A$ matrix can be derived, as the matrix which transforms the state $\textbf{x}$ into $\dot{\textbf{x}}$.
-
-This can be done algebraically, solving for each variable of interest and subsitution, though linear algebra makes the process much easier as the coupled equations can be expressed as matrix multiplication as:
+With these equations, the $A$ matrix can be derived by solving for the state variables of $\dot{\textbf{x}}$ and algebraically solving for $\ddot x$ and $\ddot \theta_x$ as the coupled equations  expressed the matricies:
 
 $$\underbrace{\begin{bmatrix} (m_c+m_p) & m_p\ell \\ m_p\ell & I + m_p\ell^2 \end{bmatrix}}_M \begin{bmatrix} \ddot x_c \\ \ddot\theta_x\end{bmatrix} = \begin{bmatrix}0 \\-m_pg\ell\theta_x\end{bmatrix}$$
 
-The inverse of the $M$ matrix's is obtained via $\frac{1}{det(M)} \cdot M=M^{-1}$, and is used to solve for $\ddot x_c$ and $\ddot\theta_x$:
+
+
+Let $M^{-1}$ be the inverse of matrix $M$ be defined as $M^{-1} =\frac{1}{D}\cdot M$, where $\frac{1}{D} = \frac{1}{det(M)}$. Thus,
+
 
 $$\begin{bmatrix}\ddot x_c \\ \ddot \theta_x\end{bmatrix} = M^{-1}\begin{bmatrix}0 \\ -m_p g\ell\theta_x\end{bmatrix}=\frac{1}{D}\begin{bmatrix}-m_p^2\ell^2g\theta_x \\-(m_c+m_p)(m_pg\ell\theta_x)\end{bmatrix}$$
 
@@ -195,8 +271,10 @@ $$\large{\ddot \theta_y= \theta_y\frac{-(m_c+m_p)(m_pg\ell)}{D}}= \theta_y\cdot 
 
 
 The $A$ matrix is therefore:
+<!-- ISSUES DISPLAYING IN GITHUB -->
+$$\begin{bmatrix} \dot x_c \\\dot y_c\\ \dot\theta_x \\ \dot\theta_y\\\ddot x_c \\ \ddot y_c \\ \ddot\theta_x \\ \ddot\theta_y\\\end{bmatrix}
 
-$$\begin{bmatrix} \dot x_c \\\dot y_c\\ \dot\theta_x \\ \dot\theta_y\\\ddot x_c \\ \ddot y_c \\ \ddot\theta_x \\ \ddot\theta_y\\\end{bmatrix} =\begin{bmatrix}
+=\underbrace{\begin{bmatrix}
 0 &0 &0 &0 &1 &0 &0 &0  \\ 
 0 &0 &0 &0 &0 &1 &0 &0  \\
 0 &0 &0 &0 &0 &0 &1 &0  \\
@@ -204,8 +282,11 @@ $$\begin{bmatrix} \dot x_c \\\dot y_c\\ \dot\theta_x \\ \dot\theta_y\\\ddot x_c 
 0 &0 &p &0 &0 &0 &0 &0  \\
 0 &0 &q &0 &0 &0 &0 &0  \\
 0 &0 &0 &p &0 &0 &0 &0  \\
-0 &0 &0 &q &0 &0 &0 &0  \\ \end{bmatrix}\cdot
+0 &0 &0 &q &0 &0 &0 &0  \\ \end{bmatrix}}_A\cdot
+
 \begin{bmatrix} x \\ y \\ \theta_x \\ \theta_y \\ \dot x_c \\ \dot y_c \\ \dot \theta_x \\ \dot\theta_y\\ \end{bmatrix}$$
+
+
 
 
 ## Cost-To-Go
