@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Two Axis Cart Pole</title>
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']],
+        tags: 'ams'
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface-raised: #1c2333;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-subtle: rgba(88, 166, 255, 0.12);
+      --green: #3fb950;
+      --purple: #bc8cff;
+      --orange: #f0883e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .hero {
+      position: relative;
+      padding: 5rem 2rem 4rem;
+      text-align: center;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(88,166,255,0.08), transparent),
+        radial-gradient(ellipse 40% 60% at 80% 20%, rgba(188,140,255,0.06), transparent);
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero .subtitle {
+      margin-top: 0.75rem;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin-inline: auto;
+    }
+    .hero .badge-row {
+      margin-top: 1.5rem;
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+    }
+    .badge.blue  { color: var(--accent); border-color: rgba(88,166,255,0.3); background: rgba(88,166,255,0.08); }
+    .badge.purple { color: var(--purple); border-color: rgba(188,140,255,0.3); background: rgba(188,140,255,0.08); }
+    .badge.green { color: var(--green); border-color: rgba(63,185,80,0.3); background: rgba(63,185,80,0.08); }
+    .page-wrap {
+      display: flex;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      width: 260px;
+      min-width: 260px;
+      padding: 2rem 1.25rem;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      font-size: 0.85rem;
+    }
+    .sidebar .nav-group { margin-bottom: 1.5rem; }
+    .sidebar .nav-label {
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .sidebar a {
+      display: block;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .sidebar a:hover {
+      color: var(--text);
+      background: var(--accent-subtle);
+    }
+    .content {
+      flex: 1;
+      min-width: 0;
+      padding: 3rem 3rem 6rem;
+    }
+    .content section { margin-bottom: 3.5rem; }
+    h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.75rem;
+      color: var(--accent);
+    }
+    h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+      color: var(--purple);
+    }
+    p { margin-bottom: 1rem; }
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    thead { background: var(--surface-raised); }
+    th {
+      text-align: left;
+      padding: 0.6rem 1rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(88,166,255,0.04); }
+    .math-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin: 1rem 0 1.5rem;
+      overflow-x: auto;
+    }
+    .math-block.highlight {
+      border-color: rgba(88,166,255,0.3);
+      background: rgba(88,166,255,0.04);
+    }
+    .math-block.result {
+      border-color: rgba(63,185,80,0.3);
+      background: rgba(63,185,80,0.04);
+    }
+    .callout {
+      padding: 1rem 1.25rem;
+      border-radius: 8px;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.92rem;
+      border-left: 3px solid;
+    }
+    .callout.note {
+      background: rgba(88,166,255,0.06);
+      border-color: var(--accent);
+    }
+    .callout.warning {
+      background: rgba(240,136,62,0.06);
+      border-color: var(--orange);
+    }
+    .callout strong { color: var(--accent); }
+    .callout.warning strong { color: var(--orange); }
+    code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      background: var(--surface-raised);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      font-size: 0.88em;
+      color: var(--accent);
+    }
+    @media (max-width: 860px) {
+      .sidebar { display: none; }
+      .content { padding: 2rem 1.25rem 4rem; }
+    }
+    mjx-container[jax="SVG"] { overflow-x: auto; }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>Two Axis Cart Pole</h1>
+  <p class="subtitle">Extending the canonical cart-pole problem with an additional axis of traversal and an extra degree of freedom on the inverted pendulum.</p>
+  <div class="badge-row">
+    <span class="badge blue">MuJoCo XLA</span>
+    <span class="badge purple">LQR Control</span>
+    <span class="badge green">RL Swing-Up</span>
+  </div>
+</header>
+
+<div class="page-wrap">
+
+<nav class="sidebar">
+  <div class="nav-group">
+    <div class="nav-label">Environment</div>
+    <a href="#state-space">State Space</a>
+    <a href="#control-inputs">Control Inputs</a>
+    <a href="#reward">Reward Functions</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">Algorithmic Control</div>
+    <a href="#parameters">Parameters</a>
+    <a href="#kinematics">Kinematics</a>
+    <a href="#lagrangian">Equations of Motion</a>
+    <a href="#dynamics">Dynamics Equations</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">LQR Controller</div>
+    <a href="#linearization">Linearization</a>
+    <a href="#cost-to-go">Cost-To-Go</a>
+  </div>
+</nav>
+
+<main class="content">
+
+  <section id="state-space">
+    <h2>Environment &amp; State Space</h2>
+    <p>The inverted two-axis pendulum state vector is:</p>
+    <div class="math-block highlight">
+      $$\mathbf{x} = \left[ x,\; y,\; \theta_x,\; \theta_y,\; \dot{x},\; \dot{y},\; \dot{\theta}_x,\; \dot{\theta}_y \right]$$
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variable</th><th>Description</th><th>Min</th><th>Max</th></tr></thead>
+        <tbody>
+          <tr><td>$x$</td><td>Cart position along x-axis</td><td>−2</td><td>2</td></tr>
+          <tr><td>$y$</td><td>Cart position along y-axis</td><td>−2</td><td>2</td></tr>
+          <tr><td>$\theta_x$</td><td>Pole angle along x-axis (rad)</td><td>$0$</td><td>$2\pi$</td></tr>
+          <tr><td>$\theta_y$</td><td>Pole angle along y-axis (rad)</td><td>$0$</td><td>$2\pi$</td></tr>
+          <tr><td>$\dot x$</td><td>Linear velocity of cart along x</td><td>$-\infty$</td><td>$\infty$</td></tr>
+          <tr><td>$\dot y$</td><td>Linear velocity of cart along y</td><td>$-\infty$</td><td>$\infty$</td></tr>
+          <tr><td>$\dot\theta_x$</td><td>Angular velocity of pole about x</td><td>$-\infty$</td><td>$\infty$</td></tr>
+          <tr><td>$\dot\theta_y$</td><td>Angular velocity of pole about y</td><td>$-\infty$</td><td>$\infty$</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="control-inputs">
+    <h2>Control Inputs</h2>
+    <p>The system has two control inputs corresponding to linear forces applied to the cart:</p>
+    <div class="math-block">$$u = \begin{bmatrix} F_x \\ F_y \end{bmatrix}$$</div>
+  </section>
+
+  <section id="reward">
+    <h2>Reward Functions</h2>
+    <h3>Basic Swing-Up</h3>
+    <div class="math-block">$$\mathcal{R}_1(s,a) = 2 + \cos(\theta_x) + \cos(\theta_y)$$</div>
+    <h3>Centering &amp; Swing-Up</h3>
+    <p>Adds a penalty proportional to distance from the origin to encourage both swing-up <em>and</em> centering:</p>
+    <div class="math-block highlight">$$\mathcal{R}_2(s,a) = 4\bigl(\cos(\theta_x) + \cos(\theta_y)\bigr) - \bigl(x^2 + y^2\bigr)$$</div>
+    <p>The coefficient of 4 offsets the range mismatch between the pole-balancing reward $[-2,2]$ and the distance penalty $[0,-4]$.</p>
+  </section>
+
+  <section id="parameters">
+    <h2>Algorithmic Control</h2>
+    <div class="callout note">
+      <strong>Note:</strong> This section uses a different XML model aligned with <a href="https://underactuated.csail.mit.edu/acrobot.html" style="color:var(--accent)">MIT's Underactuated Robotics</a>.
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Parameter</th><th>Description</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>$m_c$</td><td>Mass of the cart (frictionless)</td><td>1.0 kg</td></tr>
+          <tr><td>$m_p$</td><td>Mass at end of pendulum</td><td>0.333 kg</td></tr>
+          <tr><td>$\ell$</td><td>Pendulum arm length</td><td>0.6 m</td></tr>
+          <tr><td>$g$</td><td>Gravitational acceleration</td><td>9.81 m/s²</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Assumptions: no damping on force applied to the cart and no friction on the cart.</p>
+  </section>
+
+  <section id="kinematics">
+    <h2>Kinematics</h2>
+    <p>The pole tip lives in $\mathbb{R}^3$ while the cart moves in $\mathbb{R}^2$.</p>
+    <h3>Position</h3>
+    <div class="math-block">
+      $$\mathbf{x}_p = \begin{bmatrix} x_c + \ell\sin(\theta_x) \\ y_c + \ell\sin(\theta_y) \\ \ell\cos(\theta_x)\cos(\theta_y) \end{bmatrix}$$
+    </div>
+    <h3>Velocity</h3>
+    <div class="math-block">
+      $$\dot{\mathbf{x}}_p = \begin{bmatrix} \dot x_c + \ell\cos(\theta_x)\,\dot\theta_x \\ \dot y_c + \ell\cos(\theta_y)\,\dot\theta_y \\ -\ell\sin(\theta_x)\cos(\theta_y)\,\dot\theta_x - \ell\sin(\theta_y)\cos(\theta_x)\,\dot\theta_y \end{bmatrix}$$
+    </div>
+  </section>
+
+  <section id="lagrangian">
+    <h2>Equations of Motion</h2>
+    <p>Derived via the Lagrangian $L = T - V$, where $T$ and $V$ are kinetic and potential energy.</p>
+    <h3>Kinetic Energy</h3>
+    <h4>Pole (translational)</h4>
+    <div class="math-block">$$T_p = \tfrac{1}{2}\,m_p\!\left(\dot x_p^2 + \dot y_p^2 + \dot z_p^2\right)$$</div>
+    <h4>Cart</h4>
+    <div class="math-block">$$T_c = \tfrac{1}{2}\,m_c\!\left(\dot x_c^2 + \dot y_c^2\right)$$</div>
+    <h4>Pole (rotational)</h4>
+    <div class="math-block">$$T_r = \tfrac{1}{2}\,I\!\left(\dot\theta_x^2 + \dot\theta_y^2\right), \qquad I = m_p\ell^2$$</div>
+    <div class="math-block highlight">$$T = T_p + T_c + T_r$$</div>
+    <h3>Potential Energy</h3>
+    <div class="math-block">$$V = m_p\,g\,\ell\,\cos(\theta_x)\cos(\theta_y)$$</div>
+    <h3>Euler–Lagrange Equation</h3>
+    <p>Using generalized coordinates $q = \begin{bmatrix} x_c & y_c & \theta_x & \theta_y \end{bmatrix}^T$:</p>
+    <div class="math-block highlight">$$\frac{d}{dt}\!\left(\frac{\partial L}{\partial \dot q_i}\right) - \frac{\partial L}{\partial q_i} = Q_i$$</div>
+  </section>
+
+  <section id="dynamics">
+    <h2>Dynamics Equations</h2>
+
+    <h3>Cart: $x_c$</h3>
+    <div class="math-block result">$$F_x = \ddot x_c(m_c + m_p) + m_p\ell\!\left(\cos(\theta_x)\,\ddot\theta_x - \sin(\theta_x)\,\dot\theta_x^2\right)$$</div>
+
+    <h3>Pole: $\theta_x$</h3>
+    <h4>Generalized momentum (small-angle approx.)</h4>
+    <div class="math-block">$$\frac{\partial L}{\partial \dot\theta_x} \approx m_p\ell\cos(\theta_x)\,\dot x_c + \dot\theta_x\!\left[m_p\ell^2 + I\right]$$</div>
+    <h4>Time derivative</h4>
+    <div class="math-block">$$\frac{d}{dt}\!\left(\frac{\partial L}{\partial \dot\theta_x}\right) \approx m_p\ell\cos(\theta_x)\,\ddot x_c - m_p\ell\sin(\theta_x)\,\dot\theta_x\,\dot x_c + \ddot\theta_x\!\left[m_p\ell^2 + I\right]$$</div>
+    <h4>Resulting force equation</h4>
+    <div class="math-block result">$$F_{\theta_x} = m_p\ell\cos(\theta_x)\,\ddot x_c + \ddot\theta_x\!\left[m_p\ell^2 + I\right] + m_p\ell^2\sin(\theta_x)\cos(\theta_y)\,\dot\theta_x^2 + m_p g\ell\sin(\theta_x)\cos(\theta_y)$$</div>
+    <div class="callout warning"><strong>N.B.:</strong> There is an open question on whether the gravitational term should be subtracted rather than added. Further derivation needed to confirm the sign.</div>
+  </section>
+
+  <section id="linearization">
+    <h2>Linearization</h2>
+    <p>To design an LQR controller we linearize about the upright fixed point using: $\cos\theta \approx 1$, $\sin\theta \approx \theta$, $\theta^2 \approx 0$.</p>
+
+    <h3>Coupled linear equations</h3>
+    <div class="math-block">
+      $$\ddot x_c(m_c + m_p) + m_p\ell\,\ddot\theta_x = F_x$$
+      $$m_p\ell\,\ddot x_c + \ddot\theta_x(I + m_p\ell^2) + m_p g\ell\,\theta_x = 0$$
+    </div>
+
+    <h3>Matrix form</h3>
+    <div class="math-block highlight">
+      $$\underbrace{\begin{bmatrix} m_c + m_p & m_p\ell \\ m_p\ell & I + m_p\ell^2 \end{bmatrix}}_M \begin{bmatrix} \ddot x_c \\ \ddot\theta_x \end{bmatrix} = \begin{bmatrix} F_x \\ -m_p g\ell\,\theta_x \end{bmatrix}$$
+    </div>
+
+    <h3>Solving via $M^{-1}$</h3>
+    <p>With $D = \det(M)$:</p>
+    <div class="math-block result">
+      $$\ddot x_c = F_x\,\frac{m_c + m_p}{D} \;-\; \theta_x\,\frac{m_p^2\ell^2 g}{D}$$
+      $$\ddot\theta_x = F_x\,\frac{m_p\ell}{D} \;-\; \theta_x\,\frac{I\,m_p g\ell \;-\; m_p^2\ell^3 g}{D}$$
+    </div>
+
+    <p>By symmetry, the $y$-axis equations are identical with $x \to y$:</p>
+    <div class="math-block">
+      $$\ddot y_c = F_y\,\frac{m_c + m_p}{D} - \theta_y\,\frac{m_p^2\ell^2 g}{D}$$
+      $$\ddot\theta_y = F_y\,\frac{m_p\ell}{D} - \theta_y\,\frac{I\,m_p g\ell - m_p^2\ell^3 g}{D}$$
+    </div>
+  </section>
+
+  <section id="cost-to-go">
+    <h2>Cost-To-Go &amp; LQR</h2>
+    <div class="math-block highlight">$$J = \int_0^\infty \!\left[\mathbf{x}(t)^T Q\,\mathbf{x}(t) + \mathbf{u}(t)^T R\,\mathbf{u}(t)\right] dt$$</div>
+    <h3>Weight matrices</h3>
+    <div class="math-block">
+      $$Q = \operatorname{diag}\!\left(10,\; 10,\; 100,\; 100,\; 1,\; 1,\; 1,\; 1\right)$$
+      $$R = \begin{bmatrix} 1 \\ 1 \end{bmatrix}$$
+    </div>
+    <p>Emphasis is placed on controlling $\theta_x$ and $\theta_y$ (weight 100) while still penalizing cart displacement (weight 10).</p>
+    <p>Using the linear approximation $\dot{\mathbf{x}} = A\mathbf{x} + B\mathbf{u}$, the optimal gain matrix $K$ is obtained by solving the <strong>Continuous Algebraic Riccati Equation</strong> via <code>scipy.linalg.solve_continuous_are(A, B, Q, R)</code>. The control law is then $\mathbf{u} = -K\mathbf{x}$.</p>
+  </section>
+
+</main>
+</div>
+</body>
+</html>
